@@ -25,7 +25,7 @@ jobs:
         cat << 'EOF' > bot.py
         import asyncio
         import requests
-        import sys
+        import os
         from telethon import TelegramClient
 
         api_id = 37587197
@@ -34,9 +34,9 @@ jobs:
         CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
         COMMAND = "/open DELTARUNE"
 
-        # Сюда автоматически подставится твой секретный токен из настроек
-        GITHUB_TOKEN = "${{ secrets.MY_GITHUB_TOKEN }}"
-        REPO = "${{ github.repository }}"
+        # Безопасно вытаскиваем токен и репозиторий из системы
+        GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN")
+        REPO = os.getenv("GITHUB_REPOSITORY")
 
         def restart_workflow():
             print("5 часов прошло. Отправляем запрос на перезапуск...")
@@ -54,7 +54,7 @@ jobs:
 
         async def main():
             async with TelegramClient('my_session', api_id, api_hash) as client:
-                # 10 кругов по 30 минут = 5 часов работы (безопасно до лимита в 6 часов)
+                # Временно поставь range(2) и sleep(10) для быстрого теста, если нужно!
                 for circle in range(10): 
                     print(f"Запуск круга отправки {circle + 1}/10...")
                     for chat in CHATS:
@@ -68,7 +68,6 @@ jobs:
                     print("Круг завершен. Засыпаем на 30 минут...")
                     await asyncio.sleep(1800)
                 
-                # По истечении 5 часов вызываем новую копию
                 restart_workflow()
 
         if __name__ == '__main__':
@@ -76,4 +75,6 @@ jobs:
         EOF
 
     - name: Запуск скрипта
+      env:
+        MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       run: python bot.py
