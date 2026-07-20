@@ -1,7 +1,7 @@
 name: Telegram Bot Loop
 
 on:
-  workflow_dispatch: # Запуск по кнопке
+  workflow_dispatch: # Запуск кнопкой вручную
 
 jobs:
   run-bot:
@@ -27,11 +27,11 @@ jobs:
         api_id = 37587197
         api_hash = 'ebe579cce7e826af00b4771f6837908d'
 
-        CHATS = ['@deltarune_cases_bot', '@Ферма tanatolii']
+        # Убрали собачку у второго чата
+        CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
         COMMAND = "/open DELTARUNE"
 
         async def main():
-            # Запускаем сессию прямо из корня
             async with TelegramClient('my_session', api_id, api_hash) as client:
                 while True:
                     print("Запуск круга отправки...")
