@@ -1,7 +1,7 @@
 name: Telegram Bot Loop
 
 on:
-  workflow_dispatch: # Позволяет запускать одной кнопкой в интерфейсе
+  workflow_dispatch: # Просто кнопка «Запустить» в панели
 
 jobs:
   run-bot:
