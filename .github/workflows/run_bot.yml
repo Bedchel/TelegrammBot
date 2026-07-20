@@ -1,24 +1,22 @@
-name: Run Telegram Bot
+name: Telegram Bot Loop
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Позволяет запускать одной кнопкой в интерфейсе
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     steps:
     - name: Проверка кода
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Установка Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-    - name: Установка библиотек
+    - name: Установка Telethon
       run: pip install telethon
 
-    - name: Запуск бота
-      run: python bot.py
+    - name: Запуск скрипта
+      run: python api/bot.py
