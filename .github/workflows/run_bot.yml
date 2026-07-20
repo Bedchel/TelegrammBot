@@ -1,7 +1,7 @@
 name: Telegram Bot Loop
 
 on:
-  workflow_dispatch: # Запуск кнопкой вручную в панели Actions
+  workflow_dispatch: # Запуск по кнопке
 
 jobs:
   run-bot:
@@ -18,5 +18,37 @@ jobs:
     - name: Установка Telethon
       run: pip install telethon
 
-    - name: Запуск скрипта с автопоиском
-      run: python $(find . -name "bot.py" -o -name "bot.py.txt" | head -n 1)
+    - name: Создание файла bot.py на сервере
+      run: |
+        cat << 'EOF' > bot.py
+        import asyncio
+        from telethon import TelegramClient
+
+        api_id = 37587197
+        api_hash = 'ebe579cce7e826af00b4771f6837908d'
+
+        CHATS = ['@deltarune_cases_bot', '@Ферма tanatolii']
+        COMMAND = "/open DELTARUNE"
+
+        async def main():
+            # Запускаем сессию прямо из корня
+            async with TelegramClient('my_session', api_id, api_hash) as client:
+                while True:
+                    print("Запуск круга отправки...")
+                    for chat in CHATS:
+                        try:
+                            await client.send_message(chat, COMMAND)
+                            print(f"Сообщение успешно отправлено в {chat}")
+                            await asyncio.sleep(3)
+                        except Exception as e:
+                            print(f"Не удалось отправить в {chat}: {e}")
+                    
+                    print("Круг завершен. Засыпаем на 30 минут...")
+                    await asyncio.sleep(1800)
+
+        if __name__ == '__main__':
+            asyncio.run(main())
+        EOF
+
+    - name: Запуск скрипта
+      run: python bot.py
