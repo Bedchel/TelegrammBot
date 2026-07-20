@@ -4,21 +4,25 @@ from telethon import TelegramClient
 api_id = 37587197
 api_hash = 'ebe579cce7e826af00b4771f6837908d'
 
-# Указали правильные названия чатов
-CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
+# Оба чата на месте
+CHATS = ['@deltarune_cases_bot', '@Ферма tanatolii']
 COMMAND = "/open DELTARUNE"
 
 async def main():
-    # Файлы лежат в папке api, поэтому путь 'api/my_session'
+    # Так как файл запускается из корня, путь к сессии внутри папки api пишется так:
     async with TelegramClient('api/my_session', api_id, api_hash) as client:
-        print("Запуск отправки...")
-        for chat in CHATS:
-            try:
-                await client.send_message(chat, COMMAND)
-                print(f"Сообщение успешно отправлено в {chat}")
-                await asyncio.sleep(3)
-            except Exception as e:
-                print(f"Не удалось отправить в {chat}: {e}")
+        while True: # Тот самый бесконечный цикл
+            print("Запуск круга отправки...")
+            for chat in CHATS:
+                try:
+                    await client.send_message(chat, COMMAND)
+                    print(f"Сообщение успешно отправлено в {chat}")
+                    await asyncio.sleep(3)
+                except Exception as e:
+                    print(f"Не удалось отправить в {chat}: {e}")
+            
+            print("Круг завершен. Засыпаем на 30 минут...")
+            await asyncio.sleep(1800) # Ждем 30 минут внутри самого Python
 
 if __name__ == '__main__':
     asyncio.run(main())
