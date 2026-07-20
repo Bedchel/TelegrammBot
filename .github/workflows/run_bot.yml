@@ -1,7 +1,9 @@
-name: Telegram Bot Loop
+name: Telegram Bot Loop With Auto-Restart
 
 on:
   workflow_dispatch: # Запуск кнопкой вручную
+  repository_dispatch:
+    types: [restart_bot] # Принимает сигнал автоперезапуска от самого себя
 
 jobs:
   run-bot:
@@ -15,26 +17,46 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Установка Telethon
-      run: pip install telethon
+    - name: Установка библиотек
+      run: pip install telethon requests
 
     - name: Создание файла bot.py на сервере
       run: |
         cat << 'EOF' > bot.py
         import asyncio
+        import requests
+        import sys
         from telethon import TelegramClient
 
         api_id = 37587197
         api_hash = 'ebe579cce7e826af00b4771f6837908d'
 
-        # Убрали собачку у второго чата
         CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
         COMMAND = "/open DELTARUNE"
 
+        # Сюда автоматически подставится твой секретный токен из настроек
+        GITHUB_TOKEN = "${{ secrets.MY_GITHUB_TOKEN }}"
+        REPO = "${{ github.repository }}"
+
+        def restart_workflow():
+            print("5 часов прошло. Отправляем запрос на перезапуск...")
+            url = f"https://api.github.com/repos/{REPO}/dispatches"
+            headers = {
+                "Authorization": f"token {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            data = {"event_type": "restart_bot"}
+            response = requests.post(url, headers=headers, json=data)
+            if response.status_code == 204:
+                print("Новая копия успешно запущена!")
+            else:
+                print(f"Не удалось перезапустить: {response.status_code}, {response.text}")
+
         async def main():
             async with TelegramClient('my_session', api_id, api_hash) as client:
-                while True:
-                    print("Запуск круга отправки...")
+                # 10 кругов по 30 минут = 5 часов работы (безопасно до лимита в 6 часов)
+                for circle in range(10): 
+                    print(f"Запуск круга отправки {circle + 1}/10...")
                     for chat in CHATS:
                         try:
                             await client.send_message(chat, COMMAND)
@@ -45,6 +67,9 @@ jobs:
                     
                     print("Круг завершен. Засыпаем на 30 минут...")
                     await asyncio.sleep(1800)
+                
+                # По истечении 5 часов вызываем новую копию
+                restart_workflow()
 
         if __name__ == '__main__':
             asyncio.run(main())
