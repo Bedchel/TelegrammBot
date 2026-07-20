@@ -6,7 +6,7 @@ api_id = 37587197
 api_hash = 'ebe579cce7e826af00b4771f6837908d'
 
 # Оба чата: первый бот и твоя ферма
-CHATS = ['@deltarune_cases_bot', '@Ферма tanatolii']
+CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
 COMMAND = "/open DELTARUNE"
 
 async def main():
