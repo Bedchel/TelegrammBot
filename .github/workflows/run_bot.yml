@@ -1,7 +1,7 @@
 name: Telegram Bot Loop
 
 on:
-  workflow_dispatch: # Запуск кнопкой
+  workflow_dispatch: # Запуск кнопкой вручную в панели Actions
 
 jobs:
   run-bot:
@@ -18,8 +18,5 @@ jobs:
     - name: Установка Telethon
       run: pip install telethon
 
-    - name: Показать структуру папок
-      run: ls -R
-
-    - name: Запуск скрипта
-      run: python api/bot.py
+    - name: Запуск скрипта с автопоиском
+      run: python $(find . -name "bot.py" -o -name "bot.py.txt" | head -n 1)
