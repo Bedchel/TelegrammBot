@@ -1,7 +1,7 @@
 name: Telegram Bot Loop
 
 on:
-  workflow_dispatch: # Просто кнопка «Запустить» в панели
+  workflow_dispatch: # Запуск кнопкой
 
 jobs:
   run-bot:
@@ -17,6 +17,9 @@ jobs:
 
     - name: Установка Telethon
       run: pip install telethon
+
+    - name: Показать структуру папок
+      run: ls -R
 
     - name: Запуск скрипта
       run: python api/bot.py
