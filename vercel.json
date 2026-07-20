@@ -1,13 +1,7 @@
 {
-  "builds": [
-    {
-      "src": "api/bot.py",
-      "use": "@vercel/python"
-    }
-  ],
   "crons": [
     {
-      "path": "/api/bot.py",
+      "path": "/api/bot",
       "schedule": "*/15 * * * *"
     }
   ]
