@@ -68,7 +68,7 @@ jobs:
                             print(f"Не удалось отправить в {chat}: {e}")
                     
                     print("Круг завершен. Засыпаем на 30 минут...")
-                    await asyncio.sleep(1800)
+                    await asyncio.sleep(1)
                 
                 restart_workflow()
 
