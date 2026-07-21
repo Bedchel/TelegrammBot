@@ -31,21 +31,24 @@ jobs:
         api_id = 37587197
         api_hash = 'ebe579cce7e826af00b4771f6837908d'
 
-        CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
+        CHATS = ['@deltarune_cases_bot']
         COMMAND = "/open DELTARUNE"
 
-        # Безопасно вытаскиваем токен и репозиторий из системы
-        GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN")
-        REPO = os.getenv("GITHUB_REPOSITORY")
+        # strip() уберет все случайно попавшие пробелы и переносы строк
+        GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN", "").strip()
+        REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
         def restart_workflow():
             print("5 часов прошло. Отправляем запрос на перезапуск...")
             url = f"https://api.github.com/repos/{REPO}/dispatches"
+            
+            # Используем Bearer вместо token — это современный стандарт GitHub API
             headers = {
-                "Authorization": f"token {GITHUB_TOKEN}",
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
                 "Accept": "application/vnd.github.v3+json"
             }
             data = {"event_type": "restart_bot"}
+            
             response = requests.post(url, headers=headers, json=data)
             if response.status_code == 204:
                 print("Новая копия успешно запущена!")
@@ -54,7 +57,6 @@ jobs:
 
         async def main():
             async with TelegramClient('my_session', api_id, api_hash) as client:
-                # Временно поставь range(2) и sleep(10) для быстрого теста, если нужно!
                 for circle in range(10): 
                     print(f"Запуск круга отправки {circle + 1}/10...")
                     for chat in CHATS:
