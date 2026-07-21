@@ -31,7 +31,7 @@ jobs:
         api_id = 37587197
         api_hash = 'ebe579cce7e826af00b4771f6837908d'
 
-        CHATS = ['@deltarune_cases_bot']
+        CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
         COMMAND = "/open DELTARUNE"
 
         # strip() уберет все случайно попавшие пробелы и переносы строк
@@ -68,7 +68,7 @@ jobs:
                             print(f"Не удалось отправить в {chat}: {e}")
                     
                     print("Круг завершен. Засыпаем на 30 минут...")
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(1800)
                 
                 restart_workflow()
 
