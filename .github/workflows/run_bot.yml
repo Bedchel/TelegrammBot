@@ -67,8 +67,8 @@ jobs:
                         except Exception as e:
                             print(f"Не удалось отправить в {chat}: {e}")
                     
-                    print("Круг завершен. Засыпаем на 30 минут...")
-                    await asyncio.sleep(1800)
+                    print("Круг завершен. Засыпаем на 32 минут...")
+                    await asyncio.sleep(1920)
                 
                 restart_workflow()
 
