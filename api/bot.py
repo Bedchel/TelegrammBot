@@ -36,25 +36,32 @@ def restart_workflow():
 
 async def main():
     if not SESSION_STRING:
-        raise ValueError("Ошибка: Переменная TELEGRAM_SESSION не передана!")
+        raise ValueError("Ошибка: Переменная TELEGRAM_SESSION не найдена в Secrets!")
 
-    # Авторизуемся по безопасной строке из Secrets
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
+        
+        # 🌾 1. ОТПРАВЛЯЕМ ФЕРМУ ОДИН РАЗ ПРИ СТАРТЕ (раз в ~5 часов)
+        try:
+            await client.send_message(FARM_BOT, FARM_COMMAND)
+            print(f"[{FARM_BOT}] 🌾 Ферма успешно запущена: '{FARM_COMMAND}'")
+            await asyncio.sleep(3)
+        except Exception as e:
+            print(f"[{FARM_BOT}] Ошибка при отправке в ферму: {e}")
+
+        # 📦 2. ЦИКЛ ДЛЯ КЕЙСОВ (каждые 32 минуты, 10 раз)
         for circle in range(10): 
-            print(f"Запуск круга отправки {circle + 1}/10...")
-            for chat in CHATS:
-                try:
-                    await client.send_message(chat, COMMAND)
-                    print(f"Сообщение успешно отправлено в {chat}")
-                    await asyncio.sleep(3)
-                except Exception as e:
-                    print(f"Не удалось отправить в {chat}: {e}")
+            print(f"\n--- Запуск круга кейсов {circle + 1}/10 ---")
+            
+            try:
+                await client.send_message(MAIN_BOT, MAIN_COMMAND)
+                print(f"[{MAIN_BOT}] Отправлено: {MAIN_COMMAND}")
+            except Exception as e:
+                print(f"[{MAIN_BOT}] Ошибка: {e}")
             
             print("Круг завершен. Засыпаем на 32 минуты...")
             await asyncio.sleep(1920)
         
-        # Перезапуск после 10 циклов
+        # 🔄 3. Перезапуск всего воркфлоу
         restart_workflow()
-
 if __name__ == '__main__':
     asyncio.run(main())
