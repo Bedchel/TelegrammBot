@@ -4,7 +4,6 @@ import requests
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-# Считываем данные строго из Secrets (без «засвечивания» ключей в коде)
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 SESSION_STRING = os.getenv("TELEGRAM_SESSION", "").strip()
@@ -12,17 +11,16 @@ SESSION_STRING = os.getenv("TELEGRAM_SESSION", "").strip()
 GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN", "").strip()
 REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
-# Настройки чатов и команд
 MAIN_BOT = '@deltarune_cases_bot'
-FARM_BOT = 'Ферма tanatolii'
+FARM_NAME = 'Ферма tanatolii'
 
 COMMAND_CASES = "/open DELTARUNE"
 COMMAND_FARM = "ферма"
 
 def restart_workflow():
-    print("Время работы текущей сессии истекло. Отправляем запрос на перезапуск...")
+    print("Время работы сессии истекло. Отправляем запрос на перезапуск...")
     if not REPO or not GITHUB_TOKEN:
-        print("Ошибка: REPO или MY_GITHUB_TOKEN не заданы в окружении.")
+        print("Ошибка: REPO или MY_GITHUB_TOKEN не заданы.")
         return
 
     url = f"https://api.github.com/repos/{REPO}/dispatches"
@@ -40,21 +38,38 @@ def restart_workflow():
 
 async def main():
     if not SESSION_STRING:
-        raise ValueError("Ошибка: Переменная TELEGRAM_SESSION не найдена в Secrets!")
+        raise ValueError("Ошибка: Переменная TELEGRAM_SESSION не найдена!")
 
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
         
-        # 🌾 1. КЛЕЙМИМ ФЕРМУ ОДИН РАЗ ПРИ СТАРТЕ (раз в ~5 часов)
-        try:
-            await client.send_message(FARM_BOT, COMMAND_FARM)
-            print(f"[{FARM_BOT}] 🌾 Ферма запущена: '{COMMAND_FARM}'")
-            await asyncio.sleep(3)
-        except Exception as e:
-            print(f"[{FARM_BOT}] Ошибка отправки команды фермы: {e}")
+        print("🔍 Загружаем список всех диалогов для поиска...")
+        farm_entity = None
+        
+        # Получаем последние 100 диалогов
+        async for dialog in client.iter_dialogs(limit=100):
+            # Печатаем все диалоги в лог, чтобы увидеть точное имя
+            print(f"Диалог: '{dialog.name}' | ID: {dialog.id}")
+            
+            # Проверяем совпадение (без учета регистра и пробелов по краям)
+            if FARM_NAME.lower().strip() in dialog.name.lower().strip():
+                farm_entity = dialog.entity
+                print(f"✅ НАЙДЕН ЧАТ ФЕРМЫ: '{dialog.name}' (ID: {dialog.id})")
 
-        # 📦 2. ЦИКЛ ДЛЯ КЕЙСОВ (каждые 32 минуты, 10 раз)
+        if not farm_entity:
+            print(f"\n❌ ЧАТ '{FARM_NAME}' НЕ НАЙДЕН СРЕДИ 100 ДИАЛОГОВ!")
+
+        # 🌾 1. КЛЕЙМИМ ФЕРМУ ОДИН РАЗ ПРИ СТАРТЕ
+        if farm_entity:
+            try:
+                await client.send_message(farm_entity, COMMAND_FARM)
+                print(f"[{FARM_NAME}] 🌾 Отправлена команда: '{COMMAND_FARM}'")
+                await asyncio.sleep(3)
+            except Exception as e:
+                print(f"[{FARM_NAME}] Ошибка при отправке 'ферма': {e}")
+
+        # 📦 2. ЦИКЛ ДЛЯ КЕЙСОВ (10 раз каждые 32 минуты)
         for circle in range(10): 
-            print(f"\n--- Запуск круга кейсов {circle + 1}/10 ---")
+            print(f"\n--- Круг {circle + 1}/10 ---")
             
             # Отправка в основной бот
             try:
@@ -63,19 +78,20 @@ async def main():
             except Exception as e:
                 print(f"[{MAIN_BOT}] Ошибка: {e}")
             
-            await asyncio.sleep(3) # Пауза между сообщениями
+            await asyncio.sleep(3)
 
-            # Отправка во второй чат (Ферма)
-            try:
-                await client.send_message(FARM_BOT, COMMAND_CASES)
-                print(f"[{FARM_BOT}] Отправлено: {COMMAND_CASES}")
-            except Exception as e:
-                print(f"[{FARM_BOT}] Ошибка: {e}")
+            # Отправка в чат фермы
+            if farm_entity:
+                try:
+                    await client.send_message(farm_entity, COMMAND_CASES)
+                    print(f"[{FARM_NAME}] Отправлено: {COMMAND_CASES}")
+                except Exception as e:
+                    print(f"[{FARM_NAME}] Ошибка: {e}")
             
             print("Круг завершен. Засыпаем на 32 минуты...")
             await asyncio.sleep(1920)
         
-        # 🔄 3. Перезапуск всего воркфлоу
+        # 🔄 3. Перезапуск
         restart_workflow()
 
 if __name__ == '__main__':
