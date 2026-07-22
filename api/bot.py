@@ -14,10 +14,10 @@ REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 # Настройки чатов и команд
 MAIN_BOT = '@deltarune_cases_bot'
-MAIN_COMMAND = "/open DELTARUNE"
-
 FARM_BOT = 'Ферма tanatolii'
-FARM_COMMAND = "ферма"
+
+COMMAND_CASES = "/open DELTARUNE"
+COMMAND_FARM = "ферма"
 
 def restart_workflow():
     print("Время работы текущей сессии истекло. Отправляем запрос на перезапуск...")
@@ -44,23 +44,33 @@ async def main():
 
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
         
-        # 🌾 1. ОТПРАВЛЯЕМ ФЕРМУ ОДИН РАЗ ПРИ СТАРТЕ (раз в ~5 часов)
+        # 🌾 1. КЛЕЙМИМ ФЕРМУ ОДИН РАЗ ПРИ СТАРТЕ (раз в ~5 часов)
         try:
-            await client.send_message(FARM_BOT, FARM_COMMAND)
-            print(f"[{FARM_BOT}] 🌾 Ферма успешно запущена: '{FARM_COMMAND}'")
+            await client.send_message(FARM_BOT, COMMAND_FARM)
+            print(f"[{FARM_BOT}] 🌾 Ферма запущена: '{COMMAND_FARM}'")
             await asyncio.sleep(3)
         except Exception as e:
-            print(f"[{FARM_BOT}] Ошибка при отправке в ферму: {e}")
+            print(f"[{FARM_BOT}] Ошибка отправки команды фермы: {e}")
 
         # 📦 2. ЦИКЛ ДЛЯ КЕЙСОВ (каждые 32 минуты, 10 раз)
         for circle in range(10): 
             print(f"\n--- Запуск круга кейсов {circle + 1}/10 ---")
             
+            # Отправка в основной бот
             try:
-                await client.send_message(MAIN_BOT, MAIN_COMMAND)
-                print(f"[{MAIN_BOT}] Отправлено: {MAIN_COMMAND}")
+                await client.send_message(MAIN_BOT, COMMAND_CASES)
+                print(f"[{MAIN_BOT}] Отправлено: {COMMAND_CASES}")
             except Exception as e:
                 print(f"[{MAIN_BOT}] Ошибка: {e}")
+            
+            await asyncio.sleep(3) # Пауза между сообщениями
+
+            # Отправка во второй чат (Ферма)
+            try:
+                await client.send_message(FARM_BOT, COMMAND_CASES)
+                print(f"[{FARM_BOT}] Отправлено: {COMMAND_CASES}")
+            except Exception as e:
+                print(f"[{FARM_BOT}] Ошибка: {e}")
             
             print("Круг завершен. Засыпаем на 32 минуты...")
             await asyncio.sleep(1920)
