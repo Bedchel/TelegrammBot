@@ -27,7 +27,7 @@ async def main():
                     print(f"Не удалось отправить в {chat}: {e}")
             
             print("Круг завершен. Засыпаем на 30 минут...")
-            await asyncio.sleep(1800) # Спим ровно 30 минут (1800 секунд)
+            await asyncio.sleep(1920) # Спим ровно 32 минут (1920 секунд)
 
 if __name__ == '__main__':
     asyncio.run(main())
