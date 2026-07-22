@@ -4,16 +4,20 @@ import requests
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-# Считываем конфиденциальные данные из переменных окружения
-API_ID = int(os.getenv("TELEGRAM_API_ID", "37587197"))
-API_HASH = os.getenv("TELEGRAM_API_HASH", "ebe579cce7e826af00b4771f6837908d")
+# Считываем данные строго из Secrets (без «засвечивания» ключей в коде)
+API_ID = int(os.getenv("TELEGRAM_API_ID"))
+API_HASH = os.getenv("TELEGRAM_API_HASH")
 SESSION_STRING = os.getenv("TELEGRAM_SESSION", "").strip()
 
 GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN", "").strip()
 REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
-CHATS = ['@deltarune_cases_bot', 'Ферма tanatolii']
-COMMAND = "/open DELTARUNE"
+# Настройки чатов и команд
+MAIN_BOT = '@deltarune_cases_bot'
+MAIN_COMMAND = "/open DELTARUNE"
+
+FARM_BOT = 'Ферма tanatolii'
+FARM_COMMAND = "ферма"
 
 def restart_workflow():
     print("Время работы текущей сессии истекло. Отправляем запрос на перезапуск...")
@@ -63,5 +67,6 @@ async def main():
         
         # 🔄 3. Перезапуск всего воркфлоу
         restart_workflow()
+
 if __name__ == '__main__':
     asyncio.run(main())
