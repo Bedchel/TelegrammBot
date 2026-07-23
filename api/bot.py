@@ -4,6 +4,7 @@ import requests
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
+# Считываем данные из Secrets
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 SESSION_STRING = os.getenv("TELEGRAM_SESSION", "").strip()
@@ -16,6 +17,7 @@ FARM_NAME = 'Ферма tanatolii'
 
 COMMAND_CASES = "/open DELTARUNE"
 COMMAND_FARM = "ферма"
+COMMAND_RECYCLE = "/recycle"
 
 def restart_workflow():
     print("Время работы сессии истекло. Отправляем запрос на перезапуск...")
@@ -45,12 +47,8 @@ async def main():
         print("🔍 Загружаем список всех диалогов для поиска...")
         farm_entity = None
         
-        # Получаем последние 100 диалогов
+        # Поиск чата фермы среди диалогов
         async for dialog in client.iter_dialogs(limit=100):
-            # Печатаем все диалоги в лог, чтобы увидеть точное имя
-            print(f"Диалог: '{dialog.name}' | ID: {dialog.id}")
-            
-            # Проверяем совпадение (без учета регистра и пробелов по краям)
             if FARM_NAME.lower().strip() in dialog.name.lower().strip():
                 farm_entity = dialog.entity
                 print(f"✅ НАЙДЕН ЧАТ ФЕРМЫ: '{dialog.name}' (ID: {dialog.id})")
@@ -67,7 +65,21 @@ async def main():
             except Exception as e:
                 print(f"[{FARM_NAME}] Ошибка при отправке 'ферма': {e}")
 
-        # 📦 2. ЦИКЛ ДЛЯ КЕЙСОВ (10 раз каждые 32 минуты)
+        # ♻️ 2. ПЕРЕРАБОТКА ДУБЛИКАТОВ С ПОДТВЕРЖДЕНИЕМ
+        try:
+            print(f"[{MAIN_BOT}] ♻️ Запрос переработки дубликатов...")
+            await client.send_message(MAIN_BOT, COMMAND_RECYCLE)
+            await asyncio.sleep(3)  # Ждём ответа от бота с кнопкой
+            
+            # Находим последнее сообщение и кликаем на "✅ Подтвердить"
+            async for message in client.iter_messages(MAIN_BOT, limit=1):
+                if message.buttons:
+                    await message.click(0, 0)
+                    print(f"[{MAIN_BOT}] ✅ Дубликаты успешно переработаны!")
+        except Exception as e:
+            print(f"[{MAIN_BOT}] Ошибка переработки: {e}")
+
+        # 📦 3. ЦИКЛ ДЛЯ КЕЙСОВ (10 раз каждые 30.3 минут)
         for circle in range(10): 
             print(f"\n--- Круг {circle + 1}/10 ---")
             
@@ -88,10 +100,10 @@ async def main():
                 except Exception as e:
                     print(f"[{FARM_NAME}] Ошибка: {e}")
             
-            print("Круг завершен. Засыпаем на 30.3 минуты...")
+            print("Круг завершен. Засыпаем на 30.3 минут...")
             await asyncio.sleep(1820)
         
-        # 🔄 3. Перезапуск
+        # 🔄 4. Перезапуск воркфлоу
         restart_workflow()
 
 if __name__ == '__main__':
