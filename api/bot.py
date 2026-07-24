@@ -17,7 +17,6 @@ FARM_NAME = 'Ферма tanatolii'
 
 COMMAND_CASES = "/open DELTARUNE"
 COMMAND_FARM = "ферма"
-COMMAND_RECYCLE = "/recycle"
 
 def restart_workflow():
     print("Время работы сессии истекло. Отправляем запрос на перезапуск...")
@@ -64,21 +63,6 @@ async def main():
                 await asyncio.sleep(3)
             except Exception as e:
                 print(f"[{FARM_NAME}] Ошибка при отправке 'ферма': {e}")
-
-        # ♻️ 2. ПЕРЕРАБОТКА ДУБЛИКАТОВ С ПОДТВЕРЖДЕНИЕМ
-        try:
-            print(f"[{MAIN_BOT}] ♻️ Запрос переработки дубликатов...")
-            await client.send_message(MAIN_BOT, COMMAND_RECYCLE)
-            await asyncio.sleep(3)  # Ждём ответа от бота с кнопкой
-            
-            # Находим последнее сообщение и кликаем на "✅ Подтвердить"
-            async for message in client.iter_messages(MAIN_BOT, limit=1):
-                if message.buttons:
-                    await message.click(0, 0)
-                    print(f"[{MAIN_BOT}] ✅ Дубликаты успешно переработаны!")
-        except Exception as e:
-            print(f"[{MAIN_BOT}] Ошибка переработки: {e}")
-
         # 📦 3. ЦИКЛ ДЛЯ КЕЙСОВ (10 раз каждые 30.3 минут)
         for circle in range(10): 
             print(f"\n--- Круг {circle + 1}/10 ---")
