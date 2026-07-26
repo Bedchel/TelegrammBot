@@ -63,7 +63,7 @@ async def main():
                 await asyncio.sleep(3)
             except Exception as e:
                 print(f"[{FARM_NAME}] Ошибка при отправке 'ферма': {e}")
-        # 📦 2. ЦИКЛ ДЛЯ КЕЙСОВ (10 раз каждые 30.3 минут)
+        # 📦 2. ЦИКЛ ДЛЯ КЕЙСОВ (10 раз каждые 31.3 минут)
         for circle in range(10): 
             print(f"\n--- Круг {circle + 1}/10 ---")
             
@@ -84,8 +84,8 @@ async def main():
                 except Exception as e:
                     print(f"[{FARM_NAME}] Ошибка: {e}")
             
-            print("Круг завершен. Засыпаем на 30.3 минут...")
-            await asyncio.sleep(1820)
+            print("Круг завершен. Засыпаем на 31.3 минут...")
+            await asyncio.sleep(1880)
         
         # 🔄 3. Перезапуск воркфлоу
         restart_workflow()
