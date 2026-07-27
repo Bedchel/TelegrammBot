@@ -13,7 +13,7 @@ GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN", "").strip()
 REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 MAIN_BOT = '@deltarune_cases_bot'
-FARM_NAME = 'Ферма tanatolii'
+FARM_NAME = 'Ад tanatolii'
 
 COMMAND_CASES = "/open DELTARUNE"
 COMMAND_FARM = "ферма"
@@ -85,7 +85,7 @@ async def main():
                     print(f"[{FARM_NAME}] Ошибка: {e}")
             
             print("Круг завершен. Засыпаем на 31 минут...")
-            await asyncio.sleep(1860)
+            await asyncio.sleep(930)
         
         # 🔄 3. Перезапуск воркфлоу
         restart_workflow()
