@@ -84,8 +84,8 @@ async def main():
                 except Exception as e:
                     print(f"[{FARM_NAME}] Ошибка: {e}")
             
-            print("Круг завершен. Засыпаем на 31.3 минут...")
-            await asyncio.sleep(940)
+            print("Круг завершен. Засыпаем на 31 минут...")
+            await asyncio.sleep(1860)
         
         # 🔄 3. Перезапуск воркфлоу
         restart_workflow()
