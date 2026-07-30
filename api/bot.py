@@ -16,9 +16,8 @@ MAIN_BOT = '@deltarune_cases_bot'
 FARM_CHAT_ID = -1002869570983
 
 # Команди
-COMMAND_MAIN_CASES = "/open DELTARUNE" # Для основного бота
-COMMAND_TOPIC_CASES = "дельтакейс"      # Нова команда для топіка "Дельтакейс"
-
+COMMAND_MAIN_CASES = "/open DELTARUNE"  # Для основного бота
+COMMAND_TOPIC_CASES = "дельтакейс"       # Команда для топіка "Дельтакейс"
 
 def restart_workflow():
     print("Час роботи сесії закінчився. Відправляємо запит на перезапуск...")
@@ -43,9 +42,9 @@ async def main():
     if not SESSION_STRING:
         raise ValueError("Помилка: Перемінна TELEGRAM_SESSION не знайдена!")
 
-    async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client
+    async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
 
-        # 📦 2. ЦИКЛ ДЛЯ КЕЙСІВ (10 разів кожні 31 хвилину)
+        # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів кожні 31 хвилину)
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---")
             
@@ -60,21 +59,15 @@ async def main():
 
             # 2. Відправка у топік "Дельтакейс" чату Ад tanatolii
             try:
-                # Пошук топіка "Дельтакейс" за назвою
-                topic_id = None
-                async for forum_topic in client.iter_dialogs():
-                    pass # Перевірка топіка через пошук повідомлень/структуру
-                
-                # Знаходимо останнє повідомлення у топіку або надсилаємо з реплаєм
-                # Переважно у Телеграм форумах ID топіка — це ID його першого повідомлення.
-                # Якщо просто відправити з текстом "дельтакейс", топік підтягнеться автоматично, 
-                # якщо знайти його ID.
-                
-                # Знаходимо останнє повідомлення від когось у топіку "Дельтакейс", щоб відповісти в нього:
+                # Знаходимо останнє повідомлення у топіку "Дельтакейс", щоб відповісти в нього
                 async for message in client.iter_messages(FARM_CHAT_ID, limit=20):
                     if message.reply_to and message.reply_to.forum_topic:
                         # Відправляємо прямо в цей топік
-                        await client.send_message(FARM_CHAT_ID, COMMAND_TOPIC_CASES, reply_to=message.reply_to.reply_to_msg_id)
+                        await client.send_message(
+                            FARM_CHAT_ID, 
+                            COMMAND_TOPIC_CASES, 
+                            reply_to=message.reply_to.reply_to_msg_id
+                        )
                         print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс")
                         break
                 else:
@@ -88,7 +81,7 @@ async def main():
             print("Коло завершено. Засинаємо на 31 хвилин...")
             await asyncio.sleep(1860)
         
-        # 🔄 3. Перезапуск воркфлоу
+        # 🔄 Перезапуск воркфлоу
         restart_workflow()
 
 if __name__ == '__main__':
