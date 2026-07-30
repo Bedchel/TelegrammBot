@@ -13,11 +13,14 @@ GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN", "").strip()
 REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 MAIN_BOT = '@deltarune_cases_bot'
-FARM_CHAT_ID = -1002869570983
+FARM_CHAT_ID = '@tanatoliiss'
+
+# 🎯 Точний ID топіка "Дельтакейс" з твоєї ссилки
+DELTA_TOPIC_ID = 132244 
 
 # Команди
-COMMAND_MAIN_CASES = "/open DELTARUNE"  # Для основного бота
-COMMAND_TOPIC_CASES = "дельтакейс"       # Команда для топіка "Дельтакейс"
+COMMAND_MAIN_CASES = "/open DELTARUNE"
+COMMAND_TOPIC_CASES = "дельтакейс"
 
 def restart_workflow():
     print("Час роботи сесії закінчився. Відправляємо запит на перезапуск...")
@@ -57,24 +60,14 @@ async def main():
             
             await asyncio.sleep(3)
 
-            # 2. Відправка у топік "Дельтакейс" чату Ад tanatolii
+            # 2. Відправка ТОЧНО у топік "Дельтакейс" (ID 132244)
             try:
-                # Знаходимо останнє повідомлення у топіку "Дельтакейс", щоб відповісти в нього
-                async for message in client.iter_messages(FARM_CHAT_ID, limit=20):
-                    if message.reply_to and message.reply_to.forum_topic:
-                        # Відправляємо прямо в цей топік
-                        await client.send_message(
-                            FARM_CHAT_ID, 
-                            COMMAND_TOPIC_CASES, 
-                            reply_to=message.reply_to.reply_to_msg_id
-                        )
-                        print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс")
-                        break
-                else:
-                    # Якщо топік не визначився через реплай, відправляємо просто в чат
-                    await client.send_message(FARM_CHAT_ID, COMMAND_TOPIC_CASES)
-                    print(f"[{FARM_CHAT_ID}] Відправлено: {COMMAND_TOPIC_CASES}")
-
+                await client.send_message(
+                    FARM_CHAT_ID, 
+                    COMMAND_TOPIC_CASES, 
+                    reply_to=DELTA_TOPIC_ID  # Шле строго у гілку Дельтакейс
+                )
+                print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс (ID: {DELTA_TOPIC_ID})")
             except Exception as e:
                 print(f"[{FARM_CHAT_ID}] Помилка відправки у топік: {e}")
             
