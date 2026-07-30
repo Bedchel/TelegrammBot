@@ -17,7 +17,7 @@ MAIN_BOT = '@deltarune_cases_bot'
 # 📌 Точний ID чату/дискусії (не змінюється при зміні назви чату)
 FARM_CHAT_ID = -1002869570983
 
-COMMAND_CASES = "/open DELTARUNE"
+COMMAND_CASES = "Дельтакейс"
 COMMAND_FARM = "ферма"
 
 def restart_workflow():
