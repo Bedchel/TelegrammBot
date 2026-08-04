@@ -50,17 +50,6 @@ async def main():
         # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів кожні 31 хвилину)
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---")
-            
-            # 1. Відправка в основний бот (@deltarune_cases_bot)
-            try:
-                await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
-                print(f"[{MAIN_BOT}] Відправлено: {COMMAND_MAIN_CASES}")
-            except Exception as e:
-                print(f"[{MAIN_BOT}] Помилка: {e}")
-            
-            await asyncio.sleep(3)
-
-            # 2. Відправка ТОЧНО у топік "Дельтакейс" (ID 132244)
             try:
                 await client.send_message(
                     FARM_CHAT_ID, 
@@ -70,6 +59,16 @@ async def main():
                 print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс (ID: {DELTA_TOPIC_ID})")
             except Exception as e:
                 print(f"[{FARM_CHAT_ID}] Помилка відправки у топік: {e}")
+            
+            
+            try:
+                await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
+                print(f"[{MAIN_BOT}] Відправлено: {COMMAND_MAIN_CASES}")
+            except Exception as e:
+                print(f"[{MAIN_BOT}] Помилка: {e}")
+            
+            await asyncio.sleep(3)
+
             
             print("Коло завершено. Засинаємо на 31 хвилин...")
             await asyncio.sleep(1860)
