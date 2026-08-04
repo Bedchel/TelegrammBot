@@ -15,7 +15,7 @@ REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 MAIN_BOT = '@deltarune_cases_bot'
 FARM_CHAT_ID = '@tanatoliiss'
 
-# 🎯 Точний ID топіка "Дельтакейс" з твоєї ссилки
+# 🎯 Точний ID топіка "Дельтакейс"
 DELTA_TOPIC_ID = 132244 
 
 # Команди
@@ -50,6 +50,8 @@ async def main():
         # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів кожні 31 хвилину)
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---")
+            
+            # 1. Сначала отправка Танатолию (в топик Дельтакейс)
             try:
                 await client.send_message(
                     FARM_CHAT_ID, 
@@ -60,15 +62,15 @@ async def main():
             except Exception as e:
                 print(f"[{FARM_CHAT_ID}] Помилка відправки у топік: {e}")
             
-            
+            # Пауза 3 секунды между сообщениями
+            await asyncio.sleep(3)
+
+            # 2. Затем отправка в основной бот (@deltarune_cases_bot)
             try:
                 await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
                 print(f"[{MAIN_BOT}] Відправлено: {COMMAND_MAIN_CASES}")
             except Exception as e:
                 print(f"[{MAIN_BOT}] Помилка: {e}")
-            
-            await asyncio.sleep(3)
-
             
             print("Коло завершено. Засинаємо на 31 хвилин...")
             await asyncio.sleep(1860)
