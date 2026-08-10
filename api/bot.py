@@ -41,6 +41,22 @@ def restart_workflow():
     else:
         print(f"Не вдалося перезапустити: {response.status_code}, {response.text}")
 
+async def click_confirm_button(client, chat_entity, reply_to_msg_id=None):
+    """Шукає останнє повідомлення з кнопкою і натискає її."""
+    await asyncio.sleep(3)  # Чекаємо 3 секунди, поки бот згенерує та надішле кнопку
+    
+    try:
+        # Отримуємо останнє повідомлення у чаті / топіку
+        async for msg in client.iter_messages(chat_entity, limit=5, reply_to=reply_to_msg_id):
+            if msg.buttons:
+                # Натискаємо на першу доступну кнопку (наприклад, "Підтвердити" / "Confirm")
+                await msg.click(0)
+                print(f"[{chat_entity}] ✅ Натиснуто кнопку підтвердження!")
+                return
+        print(f"[{chat_entity}] ⚠️ Повідомлення з кнопкою не знайдено.")
+    except Exception as e:
+        print(f"[{chat_entity}] ❌ Помилка при натисканні на кнопку: {e}")
+
 async def main():
     if not SESSION_STRING:
         raise ValueError("Помилка: Перемінна TELEGRAM_SESSION не знайдена!")
@@ -51,24 +67,32 @@ async def main():
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---")
             
-            # 1. Сначала отправка Танатолию (в топик Дельтакейс)
+            # 1. Відправка Танатолію (у топік Дельтакейс)
             try:
                 await client.send_message(
                     FARM_CHAT_ID, 
                     COMMAND_TOPIC_CASES, 
-                    reply_to=DELTA_TOPIC_ID  # Шле строго у гілку Дельтакейс
+                    reply_to=DELTA_TOPIC_ID
                 )
-                print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс (ID: {DELTA_TOPIC_ID})")
+                print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс")
+                
+                # Чекаємо відповіді та тиснемо кнопку у Танатолія (якщо вона там є)
+                await click_confirm_button(client, FARM_CHAT_ID, reply_to_msg_id=DELTA_TOPIC_ID)
+                
             except Exception as e:
                 print(f"[{FARM_CHAT_ID}] Помилка відправки у топік: {e}")
             
-            # Пауза 3 секунды между сообщениями
+            # Пауза між чатами
             await asyncio.sleep(3)
 
-            # 2. Затем отправка в основной бот (@deltarune_cases_bot)
+            # 2. Відправка в основний бот (@deltarune_cases_bot)
             try:
                 await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
                 print(f"[{MAIN_BOT}] Відправлено: {COMMAND_MAIN_CASES}")
+                
+                # Чекаємо відповіді та тиснемо кнопку в основному боті
+                await click_confirm_button(client, MAIN_BOT)
+                
             except Exception as e:
                 print(f"[{MAIN_BOT}] Помилка: {e}")
             
