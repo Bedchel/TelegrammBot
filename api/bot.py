@@ -47,7 +47,7 @@ async def click_confirmation_button(client, chat_entity):
     for _ in range(10):  # Робимо 10 спроб перевірки протягом ~10 секунд
         await asyncio.sleep(1)
         async for message in client.iter_messages(chat_entity, limit=5):
-            if message.text and "подтверди открытие кейса" in message.text.lower():
+            if message.text and "mischa, подтверди открытие кейса в течение 59с" in message.text.lower():
                 if message.buttons:
                     try:
                         # Шукаємо кнопку з текстом "Открыть кейс" і тиснемо
