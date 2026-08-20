@@ -1,4 +1,5 @@
 import asyncio
+import re
 import os
 import requests
 from telethon import TelegramClient
@@ -16,11 +17,13 @@ MAIN_BOT = '@deltarune_cases_bot'
 FARM_CHAT_ID = '@tanatoliiss'
 
 # 🎯 Точний ID топіка "Дельтакейс"
-DELTA_TOPIC_ID = 132244 
+DELTA_TOPIC_ID = 132244
 
 # Команди
 COMMAND_MAIN_CASES = "/open DELTARUNE"
 COMMAND_TOPIC_CASES = "дельтакейс"
+
+DEFAULT_SLEEP_TIME = 1830  # Час очікування за замовчуванням (30.5 хв)
 
 def restart_workflow():
     print("Час роботи сесії закінчився. Відправляємо запит на перезапуск...")
@@ -41,34 +44,58 @@ def restart_workflow():
     else:
         print(f"Не вдалося перезапустити: {response.status_code}, {response.text}")
 
-async def click_confirmation_button(client, chat_entity, reply_to_topic=None):
-    """Чекає на повідомлення з кнопкою підтвердження та натискає її."""
-    print("⏳ Чекаємо на повідомлення з кнопкою підтвердження для Mischa...")
+def parse_cooldown_time(text: str) -> int:
+    """Парсить текст повідомлення та повертає час кулдауну в секундах."""
+    if not text:
+        return 0
     
-    # Очікуємо до 30 секунд (30 спроб по 1 секунді)
-    for _ in range(30):  
-        await asyncio.sleep(1)
-        
-        # Якщо відправляли у топік, шукаємо відповідь саме у ньому
+    # Шукаємо хвилини (м) і секунди (с) у тексті
+    minutes_match = re.search(r'(\d+)\s*м', text)
+    seconds_match = re.search(r'(\d+)\s*с', text)
+    
+    minutes = int(minutes_match.group(1)) if minutes_match else 0
+    seconds = int(seconds_match.group(1)) if seconds_match else 0
+    
+    total_seconds = (minutes * 60) + seconds
+    return total_seconds
+
+async def process_chat_and_get_cooldown(client, chat_entity, command, reply_to_topic=None):
+    """Шле команду, чекає відповідь, натискає кнопку (якщо є) і витягує час кулдауну."""
+    try:
+        # Відправляємо команду
         kwargs = {"reply_to": reply_to_topic} if reply_to_topic else {}
-        
+        await client.send_message(chat_entity, command, **kwargs)
+        print(f"[{chat_entity}] Відправлено команду: '{command}'")
+    except Exception as e:
+        print(f"[{chat_entity}] Помилка при відправці команди: {e}")
+        return 0
+
+    # Чекаємо відповіді від бота (до 20 секунд)
+    for _ in range(20):
+        await asyncio.sleep(1)
         async for message in client.iter_messages(chat_entity, limit=5, **kwargs):
             if message.text:
                 text_lower = message.text.lower()
-                # Перевіряємо, що повідомлення адресоване саме тебе і містить ключову фразу
-                if "mischa" in text_lower and "подтверди открытие кейса" in text_lower:
-                    if message.buttons:
+                
+                # 1. Перевіряємо, чи це повідомлення для Mischa
+                if "mischa" in text_lower:
+                    # Якщо є кнопка підтвердження — тиснемо її та завершуємо (кулдауну немає)
+                    if "подтверди открытие кейса" in text_lower and message.buttons:
                         try:
-                            # Шукаємо кнопку з текстом "Открыть кейс" і тиснемо
                             await message.click(text="Открыть кейс")
                             print("✅ Кнопку 'Открыть кейс' успішно натиснуто!")
-                            return True
+                            return 0
                         except Exception as e:
-                            print(f"❌ Помилка при натисканні на кнопку: {e}")
-                            return False
-                            
-    print("⚠️ Повідомлення з кнопкою підтвердження не було знайдено протягом 30 сек.")
-    return False
+                            print(f"❌ Помилка при натисканні кнопочки: {e}")
+                    
+                    # Якщо у повідомленні є фраза про кулдаун — парсимо час
+                    if "кулдаун" in text_lower or "попробуй через" in text_lower:
+                        cooldown = parse_cooldown_time(message.text)
+                        if cooldown > 0:
+                            print(f"⏱️ Знайдено кулдаун: {cooldown} секунд ({cooldown // 60}м {cooldown % 60}с)")
+                            return cooldown
+
+    return 0
 
 async def main():
     if not SESSION_STRING:
@@ -76,41 +103,35 @@ async def main():
 
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
 
-        # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів кожні 15.5 хвилин)
+        # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів)
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---")
             
-            # 1. Відправка Танатолію (в топік Дельтакейс)
-            try:
-                await client.send_message(
-                    FARM_CHAT_ID, 
-                    COMMAND_TOPIC_CASES, 
-                    reply_to=DELTA_TOPIC_ID  # Шле строго у гілку Дельтакейс
-                )
-                print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс")
-                
-                # Перевіряємо та тиснемо кнопку в топіку Танатолія
-                await click_confirmation_button(client, FARM_CHAT_ID, reply_to_topic=DELTA_TOPIC_ID)
-
-            except Exception as e:
-                print(f"[{FARM_CHAT_ID}] Помилка відправки у топік: {e}")
+            # 1. Відкриваємо/перевіряємо кейс у топіку Дельтакейс
+            cooldown_topic = await process_chat_and_get_cooldown(
+                client, FARM_CHAT_ID, COMMAND_TOPIC_CASES, reply_to_topic=DELTA_TOPIC_ID
+            )
             
-            # Пауза 3 секунди між відправками
             await asyncio.sleep(3)
 
-            # 2. Відправка в основний бот (@deltarune_cases_bot)
-            try:
-                await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
-                print(f"[{MAIN_BOT}] Відправлено: {COMMAND_MAIN_CASES}")
-                
-                # Перевіряємо та тиснемо кнопку в основному боті (якщо вона там є)
-                await click_confirmation_button(client, MAIN_BOT)
+            # 2. Відкриваємо/перевіряємо кейс в основному боті
+            cooldown_main = await process_chat_and_get_cooldown(
+                client, MAIN_BOT, COMMAND_MAIN_CASES
+            )
 
-            except Exception as e:
-                print(f"[{MAIN_BOT}] Помилка: {e}")
-            
-            print("Коло завершено. Засинаємо на 15.5 хвилин...")
-            await asyncio.sleep(1260)  # 15.5 хвилин = 930 секунд
+            # Вибираємо максимальний знайдений кулдаун серед двох відповідей
+            max_cooldown = max(cooldown_topic, cooldown_main)
+
+            if max_cooldown > 0:
+                # Додаємо 5 секунд запасу, щоб гарантовано зачекати закінчення кулдауну
+                sleep_time = max_cooldown + 5
+                print(f"😴 Встановлено таймер сну за кулдауном: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)")
+            else:
+                sleep_time = DEFAULT_SLEEP_TIME
+                print(f"😴 Кулдаун не виявлено. Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)")
+
+            print(f"Коло {circle + 1} завершено.")
+            await asyncio.sleep(sleep_time)
         
         # 🔄 Перезапуск воркфлоу
         restart_workflow()
