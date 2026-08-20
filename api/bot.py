@@ -26,9 +26,9 @@ COMMAND_TOPIC_CASES = "дельтакейс"
 DEFAULT_SLEEP_TIME = 1830  # Час очікування за замовчуванням (30.5 хв)
 
 def restart_workflow():
-    print("Час роботи сесії закінчився. Відправляємо запит на перезапуск...")
+    print("Час роботи сесії закінчився. Відправляємо запит на перезапуск...", flush=True)
     if not REPO or not GITHUB_TOKEN:
-        print("Помилка: REPO або MY_GITHUB_TOKEN не задані.")
+        print("Помилка: REPO або MY_GITHUB_TOKEN не задані.", flush=True)
         return
 
     url = f"https://api.github.com/repos/{REPO}/dispatches"
@@ -40,9 +40,9 @@ def restart_workflow():
     
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 204:
-        print("Новий Workflow успішно запущено!")
+        print("Новий Workflow успішно запущено!", flush=True)
     else:
-        print(f"Не вдалося перезапустити: {response.status_code}, {response.text}")
+        print(f"Не вдалося перезапустити: {response.status_code}, {response.text}", flush=True)
 
 def parse_cooldown_time(text: str) -> int:
     """Парсить текст повідомлення та повертає час кулдауну в секундах."""
@@ -65,9 +65,9 @@ async def process_chat_and_get_cooldown(client, chat_entity, command, reply_to_t
         # Відправляємо команду
         kwargs = {"reply_to": reply_to_topic} if reply_to_topic else {}
         await client.send_message(chat_entity, command, **kwargs)
-        print(f"[{chat_entity}] Відправлено команду: '{command}'")
+        print(f"[{chat_entity}] Відправлено команду: '{command}'", flush=True)
     except Exception as e:
-        print(f"[{chat_entity}] Помилка при відправці команди: {e}")
+        print(f"[{chat_entity}] Помилка при відправці команди: {e}", flush=True)
         return 0
 
     # Чекаємо відповіді від бота (до 20 секунд)
@@ -83,16 +83,16 @@ async def process_chat_and_get_cooldown(client, chat_entity, command, reply_to_t
                     if "подтверди открытие кейса" in text_lower and message.buttons:
                         try:
                             await message.click(text="Открыть кейс")
-                            print("✅ Кнопку 'Открыть кейс' успішно натиснуто!")
+                            print("✅ Кнопку 'Открыть кейс' успішно натиснуто!", flush=True)
                             return 0
                         except Exception as e:
-                            print(f"❌ Помилка при натисканні кнопочки: {e}")
+                            print(f"❌ Помилка при натисканні кнопочки: {e}", flush=True)
                     
                     # Якщо у повідомленні є фраза про кулдаун — парсимо час
                     if "кулдаун" in text_lower or "попробуй через" in text_lower:
                         cooldown = parse_cooldown_time(message.text)
                         if cooldown > 0:
-                            print(f"⏱️ Знайдено кулдаун: {cooldown} секунд ({cooldown // 60}м {cooldown % 60}с)")
+                            print(f"⏱️ Знайдено кулдаун: {cooldown} секунд ({cooldown // 60}м {cooldown % 60}с)", flush=True)
                             return cooldown
 
     return 0
@@ -105,7 +105,7 @@ async def main():
 
         # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів)
         for circle in range(10): 
-            print(f"\n--- Коло {circle + 1}/10 ---")
+            print(f"\n--- Коло {circle + 1}/10 ---", flush=True)
             
             # 1. Відкриваємо/перевіряємо кейс у топіку Дельтакейс
             cooldown_topic = await process_chat_and_get_cooldown(
@@ -124,13 +124,13 @@ async def main():
 
             if max_cooldown > 0:
                 # Додаємо 5 секунд запасу, щоб гарантовано зачекати закінчення кулдауну
-                sleep_time = max_cooldown + 5
-                print(f"😴 Встановлено таймер сну за кулдауном: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)")
+                sleep_time = max_cooldown + 15
+                print(f"😴 Встановлено таймер сну за кулдауном: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)", flush=True)
             else:
                 sleep_time = DEFAULT_SLEEP_TIME
-                print(f"😴 Кулдаун не виявлено. Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)")
+                print(f"😴 Кулдаун не виявлено. Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)", flush=True)
 
-            print(f"Коло {circle + 1} завершено.")
+            print(f"Коло {circle + 1} завершено.", flush=True)
             await asyncio.sleep(sleep_time)
         
         # 🔄 Перезапуск воркфлоу
