@@ -110,7 +110,7 @@ async def main():
                 print(f"[{MAIN_BOT}] Помилка: {e}")
             
             print("Коло завершено. Засинаємо на 15.5 хвилин...")
-            await asyncio.sleep(1200)  # 15.5 хвилин = 930 секунд
+            await asyncio.sleep(1260)  # 15.5 хвилин = 930 секунд
         
         # 🔄 Перезапуск воркфлоу
         restart_workflow()
