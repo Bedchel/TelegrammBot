@@ -20,8 +20,8 @@ FARM_CHAT_ID = '@tanatoliiss'
 DELTA_TOPIC_ID = 132244
 
 # Команди
-COMMAND_MAIN_CASES = "/open DELTARUNE"
 COMMAND_TOPIC_CASES = "дельтакейс"
+COMMAND_MAIN_CASES = "/open DELTARUNE"
 
 DEFAULT_SLEEP_TIME = 1830  # Час очікування за замовчуванням (30.5 хв)
 
@@ -49,51 +49,64 @@ def parse_cooldown_time(text: str) -> int:
     if not text:
         return 0
     
-    # Шукаємо хвилини (м) і секунди (с) у тексті
     minutes_match = re.search(r'(\d+)\s*м', text)
     seconds_match = re.search(r'(\d+)\s*с', text)
+    
+    if not minutes_match and not seconds_match:
+        return 0
     
     minutes = int(minutes_match.group(1)) if minutes_match else 0
     seconds = int(seconds_match.group(1)) if seconds_match else 0
     
-    total_seconds = (minutes * 60) + seconds
+    # Додаємо 15 секунд затримки тільки якщо час дійсно розпарсився
+    total_seconds = (minutes * 60) + seconds + 15
     return total_seconds
 
-async def process_chat_and_get_cooldown(client, chat_entity, command, reply_to_topic=None):
-    """Шле команду, чекає відповідь, натискає кнопку (якщо є) і витягує час кулдауну."""
+async def open_case_in_topic(client):
+    """Шле команду в топік чату Танатолій і тисне кнопку 'Открыть кейс', якщо вона є."""
     try:
-        # Відправляємо команду
-        kwargs = {"reply_to": reply_to_topic} if reply_to_topic else {}
-        await client.send_message(chat_entity, command, **kwargs)
-        print(f"[{chat_entity}] Відправлено команду: '{command}'", flush=True)
+        kwargs = {"reply_to": DELTA_TOPIC_ID}
+        await client.send_message(FARM_CHAT_ID, COMMAND_TOPIC_CASES, **kwargs)
+        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}'", flush=True)
     except Exception as e:
-        print(f"[{chat_entity}] Помилка при відправці команди: {e}", flush=True)
-        return 0
+        print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
+        return
 
-    # Чекаємо відповіді від бота (до 20 секунд)
-    for _ in range(20):
+    # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
+    for _ in range(15):
         await asyncio.sleep(1)
-        async for message in client.iter_messages(chat_entity, limit=5, **kwargs):
+        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, **kwargs):
             if message.text:
                 text_lower = message.text.lower()
-                
-                # 1. Перевіряємо, чи це повідомлення для Mischa
-                if "mischa" in text_lower:
-                    # Якщо є кнопка підтвердження — тиснемо її та завершуємо (кулдауну немає)
-                    if "подтверди открытие кейса" in text_lower and message.buttons:
-                        try:
-                            await message.click(text="Открыть кейс")
-                            print("✅ Кнопку 'Открыть кейс' успішно натиснуто!", flush=True)
-                            return 0
-                        except Exception as e:
-                            print(f"❌ Помилка при натисканні кнопочки: {e}", flush=True)
-                    
-                    # Якщо у повідомленні є фраза про кулдаун — парсимо час
-                    if "кулдаун" in text_lower or "попробуй через" in text_lower:
-                        cooldown = parse_cooldown_time(message.text)
-                        if cooldown > 0:
-                            print(f"⏱️ Знайдено кулдаун: {cooldown} секунд ({cooldown // 60}м {cooldown % 60}с)", flush=True)
-                            return cooldown
+                if "mischa" in text_lower and "подтверди открытие кейса" in text_lower and message.buttons:
+                    try:
+                        await message.click(text="Открыть кейс")
+                        print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
+                        return
+                    except Exception as e:
+                        print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
+                        return
+
+async def get_cooldown_from_bot(client):
+    """Шле команду боту в приватні повідомлення, щоб дізнатися кулдаун."""
+    try:
+        await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
+        print(f"[{MAIN_BOT}] Відправлено команду перевірки кулдауну: '{COMMAND_MAIN_CASES}'", flush=True)
+    except Exception as e:
+        print(f"[{MAIN_BOT}] Помилка при відправці команди боту: {e}", flush=True)
+        return 0
+
+    # Чекаємо відповіді в ЛС бота (до 15 секунд)
+    for _ in range(15):
+        await asyncio.sleep(1)
+        async for message in client.iter_messages(MAIN_BOT, limit=5):
+            if message.text:
+                text_lower = message.text.lower()
+                if "mischa" in text_lower or "кулдаун" in text_lower or "попробуй через" in text_lower:
+                    cooldown = parse_cooldown_time(message.text)
+                    if cooldown > 0:
+                        print(f"⏱️ Отримано кулдаун від бота: {cooldown} секунд ({cooldown // 60}м {cooldown % 60}с)", flush=True)
+                        return cooldown
 
     return 0
 
@@ -107,24 +120,18 @@ async def main():
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---", flush=True)
             
-            # 1. Відкриваємо/перевіряємо кейс у топіку Дельтакейс
-            cooldown_topic = await process_chat_and_get_cooldown(
-                client, FARM_CHAT_ID, COMMAND_TOPIC_CASES, reply_to_topic=DELTA_TOPIC_ID
-            )
+            # 1. Відкриваємо кейс у чаті Танатолій (і тиснемо кнопку)
+            await open_case_in_topic(client)
             
+            # Невелика пауза між діями
             await asyncio.sleep(3)
 
-            # 2. Відкриваємо/перевіряємо кейс в основному боті
-            cooldown_main = await process_chat_and_get_cooldown(
-                client, MAIN_BOT, COMMAND_MAIN_CASES
-            )
+            # 2. Отримуємо точний кулдаун через ЛС з ботом
+            cooldown = await get_cooldown_from_bot(client)
 
-            # Вибираємо максимальний знайдений кулдаун серед двох відповідей
-            max_cooldown = max(cooldown_topic, cooldown_main)
-
-            if max_cooldown > 0:
-                # Додаємо 5 секунд запасу, щоб гарантовано зачекати закінчення кулдауну
-                sleep_time = max_cooldown + 15
+            if cooldown > 0:
+                # Додаємо ще 5 секунд запасу (загалом буде +20 секунд до базового кулдауну)
+                sleep_time = cooldown + 5
                 print(f"😴 Встановлено таймер сну за кулдауном: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)", flush=True)
             else:
                 sleep_time = DEFAULT_SLEEP_TIME
