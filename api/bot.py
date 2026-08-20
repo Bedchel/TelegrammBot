@@ -41,23 +41,33 @@ def restart_workflow():
     else:
         print(f"Не вдалося перезапустити: {response.status_code}, {response.text}")
 
-async def click_confirmation_button(client, chat_entity):
+async def click_confirmation_button(client, chat_entity, reply_to_topic=None):
     """Чекає на повідомлення з кнопкою підтвердження та натискає її."""
-    print("⏳ Чекаємо на повідомлення з кнопкою підтвердження...")
-    for _ in range(10):  # Робимо 10 спроб перевірки протягом ~10 секунд
+    print("⏳ Чекаємо на повідомлення з кнопкою підтвердження для Mischa...")
+    
+    # Очікуємо до 30 секунд (30 спроб по 1 секунді)
+    for _ in range(30):  
         await asyncio.sleep(1)
-        async for message in client.iter_messages(chat_entity, limit=5):
-            if message.text and "mischa, подтверди открытие кейса в течение 59с" in message.text.lower():
-                if message.buttons:
-                    try:
-                        # Шукаємо кнопку з текстом "Открыть кейс" і тиснемо
-                        await message.click(text="Открыть кейс")
-                        print("✅ Кнопку 'Открыть кейс' успішно натиснуто!")
-                        return True
-                    except Exception as e:
-                        print(f"❌ Помилка при натисканні на кнопку: {e}")
-                        return False
-    print("⚠️ Повідомлення з кнопкою підтвердження не було знайдено або воно без кнопок.")
+        
+        # Якщо відправляли у топік, шукаємо відповідь саме у ньому
+        kwargs = {"reply_to": reply_to_topic} if reply_to_topic else {}
+        
+        async for message in client.iter_messages(chat_entity, limit=5, **kwargs):
+            if message.text:
+                text_lower = message.text.lower()
+                # Перевіряємо, що повідомлення адресоване саме тебе і містить ключову фразу
+                if "mischa" in text_lower and "подтверди открытие кейса" in text_lower:
+                    if message.buttons:
+                        try:
+                            # Шукаємо кнопку з текстом "Открыть кейс" і тиснемо
+                            await message.click(text="Открыть кейс")
+                            print("✅ Кнопку 'Открыть кейс' успішно натиснуто!")
+                            return True
+                        except Exception as e:
+                            print(f"❌ Помилка при натисканні на кнопку: {e}")
+                            return False
+                            
+    print("⚠️ Повідомлення з кнопкою підтвердження не було знайдено протягом 30 сек.")
     return False
 
 async def main():
@@ -66,7 +76,7 @@ async def main():
 
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
 
-        # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів кожні 31 хвилину)
+        # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів кожні 15.5 хвилин)
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---")
             
@@ -79,13 +89,13 @@ async def main():
                 )
                 print(f"[{FARM_CHAT_ID}] 🎯 Відправлено '{COMMAND_TOPIC_CASES}' у топік Дельтакейс")
                 
-                # Перевіряємо та тиснемо кнопку в чаті Танатолія
-                await click_confirmation_button(client, FARM_CHAT_ID)
+                # Перевіряємо та тиснемо кнопку в топіку Танатолія
+                await click_confirmation_button(client, FARM_CHAT_ID, reply_to_topic=DELTA_TOPIC_ID)
 
             except Exception as e:
                 print(f"[{FARM_CHAT_ID}] Помилка відправки у топік: {e}")
             
-            # Пауза 3 секунди між повідомленнями
+            # Пауза 3 секунди між відправками
             await asyncio.sleep(3)
 
             # 2. Відправка в основний бот (@deltarune_cases_bot)
@@ -93,14 +103,14 @@ async def main():
                 await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
                 print(f"[{MAIN_BOT}] Відправлено: {COMMAND_MAIN_CASES}")
                 
-                # Перевіряємо та тиснемо кнопку в основному боті (якщо вона там теж є)
+                # Перевіряємо та тиснемо кнопку в основному боті (якщо вона там є)
                 await click_confirmation_button(client, MAIN_BOT)
 
             except Exception as e:
                 print(f"[{MAIN_BOT}] Помилка: {e}")
             
-            print("Коло завершено. Засинаємо на 31 хвилин...")
-            await asyncio.sleep(1860/2)
+            print("Коло завершено. Засинаємо на 15.5 хвилин...")
+            await asyncio.sleep(930)  # 15.5 хвилин = 930 секунд
         
         # 🔄 Перезапуск воркфлоу
         restart_workflow()
