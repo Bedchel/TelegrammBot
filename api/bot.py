@@ -65,33 +65,33 @@ def parse_cooldown_time(text: str) -> int:
 async def open_case_in_topic(client):
     """Шле команду без звуку в топік чату Танатолій і тисне кнопку 'Открыть кейс'."""
     try:
-        kwargs = {
-            "reply_to": DELTA_TOPIC_ID,
-            "silent": True  # 🔕 Відправка без звуку/сповіщення
-        }
-        await client.send_message(FARM_CHAT_ID, COMMAND_TOPIC_CASES, **kwargs)
+        # Для send_message використовуємо і reply_to, і silent
+        await client.send_message(
+            FARM_CHAT_ID, 
+            COMMAND_TOPIC_CASES, 
+            reply_to=DELTA_TOPIC_ID, 
+            silent=True
+        )
         print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
     except Exception as e:
         print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
         return
 
-    # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
+    # Для iter_messages передаємо ТІЛЬКИ reply_to (без silent)
     for _ in range(15):
         await asyncio.sleep(1)
-        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, **kwargs):
+        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, reply_to=DELTA_TOPIC_ID):
             if message.text:
                 text_lower = message.text.lower()
                 if "mischa" in text_lower and "подтверди открытие кейса" in text_lower and message.buttons:
                     try:
                         await message.click(text="Открыть кейс")
                         print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
-                        # Позначаємо повідомлення прочитаними
                         await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id)
                         return
                     except Exception as e:
                         print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
                         return
-
 async def get_cooldown_from_bot(client):
     """Шле команду боту в приватні повідомлення (без звуку) та позначає діалог прочитаним."""
     try:
