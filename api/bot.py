@@ -92,6 +92,7 @@ async def open_case_in_topic(client):
                     except Exception as e:
                         print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
                         return
+                        
 async def get_cooldown_from_bot(client):
     """Шле команду боту в приватні повідомлення (без звуку) та позначає діалог прочитаним."""
     try:
