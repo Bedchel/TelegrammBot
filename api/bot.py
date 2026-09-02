@@ -63,11 +63,14 @@ def parse_cooldown_time(text: str) -> int:
     return total_seconds
 
 async def open_case_in_topic(client):
-    """Шле команду в топік чату Танатолій і тисне кнопку 'Открыть кейс', якщо вона є."""
+    """Шле команду без звуку в топік чату Танатолій і тисне кнопку 'Открыть кейс'."""
     try:
-        kwargs = {"reply_to": DELTA_TOPIC_ID}
+        kwargs = {
+            "reply_to": DELTA_TOPIC_ID,
+            "silent": True  # 🔕 Відправка без звуку/сповіщення
+        }
         await client.send_message(FARM_CHAT_ID, COMMAND_TOPIC_CASES, **kwargs)
-        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}'", flush=True)
+        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
     except Exception as e:
         print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
         return
@@ -82,16 +85,19 @@ async def open_case_in_topic(client):
                     try:
                         await message.click(text="Открыть кейс")
                         print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
+                        # Позначаємо повідомлення прочитаними
+                        await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id)
                         return
                     except Exception as e:
                         print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
                         return
 
 async def get_cooldown_from_bot(client):
-    """Шле команду боту в приватні повідомлення, щоб дізнатися кулдаун."""
+    """Шле команду боту в приватні повідомлення (без звуку) та позначає діалог прочитаним."""
     try:
-        await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES)
-        print(f"[{MAIN_BOT}] Відправлено команду перевірки кулдауну: '{COMMAND_MAIN_CASES}'", flush=True)
+        # 🔕 silent=True вимикає сповіщення
+        await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
+        print(f"[{MAIN_BOT}] Відправлено команду перевірки кулдауну: '{COMMAND_MAIN_CASES}' (без звуку)", flush=True)
     except Exception as e:
         print(f"[{MAIN_BOT}] Помилка при відправці команди боту: {e}", flush=True)
         return 0
@@ -104,6 +110,10 @@ async def get_cooldown_from_bot(client):
                 text_lower = message.text.lower()
                 if "mischa" in text_lower or "кулдаун" in text_lower or "попробуй через" in text_lower:
                     cooldown = parse_cooldown_time(message.text)
+                    
+                    # 👁️ Позначаємо всі повідомлення від бота прочитаними
+                    await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
+                    
                     if cooldown > 0:
                         print(f"⏱️ Отримано кулдаун від бота: {cooldown} секунд ({cooldown // 60}м {cooldown % 60}с)", flush=True)
                         return cooldown
@@ -130,7 +140,6 @@ async def main():
             cooldown = await get_cooldown_from_bot(client)
 
             if cooldown > 0:
-                # Додаємо ще 5 секунд запасу (загалом буде +20 секунд до базового кулдауну)
                 sleep_time = cooldown + 5
                 print(f"😴 Встановлено таймер сну за кулдауном: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)", flush=True)
             else:
