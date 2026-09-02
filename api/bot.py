@@ -65,7 +65,6 @@ def parse_cooldown_time(text: str) -> int:
 async def open_case_in_topic(client):
     """Шле команду без звуку в топік чату Танатолій і тисне кнопку 'Открыть кейс'."""
     try:
-        # Для send_message використовуємо і reply_to, і silent
         await client.send_message(
             FARM_CHAT_ID, 
             COMMAND_TOPIC_CASES, 
@@ -77,9 +76,16 @@ async def open_case_in_topic(client):
         print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
         return
 
-    # Для iter_messages передаємо ТІЛЬКИ reply_to (без silent)
+    # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
     for _ in range(15):
         await asyncio.sleep(1)
+        
+        # 👁️ Одразу позначаємо чат прочитаним, щоб заглушити звук відповіді
+        try:
+            await client.send_read_acknowledge(FARM_CHAT_ID)
+        except Exception:
+            pass
+
         async for message in client.iter_messages(FARM_CHAT_ID, limit=5, reply_to=DELTA_TOPIC_ID):
             if message.text:
                 text_lower = message.text.lower()
