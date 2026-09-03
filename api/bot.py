@@ -58,21 +58,19 @@ def parse_cooldown_time(text: str) -> int:
     minutes = int(minutes_match.group(1)) if minutes_match else 0
     seconds = int(seconds_match.group(1)) if seconds_match else 0
     
-    # Додаємо 15 секунд затримки тільки якщо час дійсно розпарсився
     total_seconds = (minutes * 60) + seconds + 15
     return total_seconds
 
 async def open_case_in_topic(client):
-    """Шле команду в топік чату Танатолій і тисне кнопку 'Открыть кейс', якщо вона є."""
+    """Шле команду без звуку в топік чату Танатолій і тисне кнопку 'Открыть кейс'."""
     try:
-        kwargs = {"reply_to": DELTA_TOPIC_ID}
-        # Шлемо команду з прапором silent окремо від kwargs
-        sent_msg = await client.send_message(FARM_CHAT_ID, COMMAND_TOPIC_CASES, silent=True, **kwargs)
-        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}'", flush=True)
-        
-        if sent_msg:
-            await client.send_read_acknowledge(FARM_CHAT_ID, max_id=sent_msg.id, top_msg_id=DELTA_TOPIC_ID)
-            
+        await client.send_message(
+            FARM_CHAT_ID, 
+            COMMAND_TOPIC_CASES, 
+            reply_to=DELTA_TOPIC_ID, 
+            silent=True
+        )
+        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
     except Exception as e:
         print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
         return
@@ -80,21 +78,21 @@ async def open_case_in_topic(client):
     # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
     for _ in range(15):
         await asyncio.sleep(1)
-        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, **kwargs):
+        
+        # 👁️ Одразу позначаємо чат прочитаним, щоб заглушити звук відповіді
+        try:
+            await client.send_read_acknowledge(FARM_CHAT_ID)
+        except Exception:
+            pass
+
+        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, reply_to=DELTA_TOPIC_ID):
             if message.text:
                 text_lower = message.text.lower()
                 if "mischa" in text_lower and "подтверди открытие кейса" in text_lower and message.buttons:
                     try:
                         await message.click(text="Открыть кейс")
                         print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
-                        
-                        # Позначаємо прочитаними поточні повідомлення
-                        await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id, top_msg_id=DELTA_TOPIC_ID)
-                        
-                        # Коротке очікування фінального повідомлення від бота і його прочитання
-                        await asyncio.sleep(2)
-                        async for last_msg in client.iter_messages(FARM_CHAT_ID, limit=2, **kwargs):
-                            await client.send_read_acknowledge(FARM_CHAT_ID, max_id=last_msg.id, top_msg_id=DELTA_TOPIC_ID)
+                        await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id)
                         return
                     except Exception as e:
                         print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
@@ -103,13 +101,12 @@ async def open_case_in_topic(client):
 async def get_cooldown_from_bot(client):
     """Шле команду боту в приватні повідомлення, щоб дізнатися кулдаун."""
     try:
-        sent_msg = await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
+        await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
         print(f"[{MAIN_BOT}] Відправлено команду перевірки кулдауну: '{COMMAND_MAIN_CASES}'", flush=True)
     except Exception as e:
         print(f"[{MAIN_BOT}] Помилка при відправці команди боту: {e}", flush=True)
         return 0
 
-    # Чекаємо відповіді в ЛС бота (до 15 секунд)
     for _ in range(15):
         await asyncio.sleep(1)
         async for message in client.iter_messages(MAIN_BOT, limit=5):
@@ -117,8 +114,6 @@ async def get_cooldown_from_bot(client):
                 text_lower = message.text.lower()
                 if "mischa" in text_lower or "кулдаун" in text_lower or "попробуй через" in text_lower:
                     cooldown = parse_cooldown_time(message.text)
-                    
-                    # Позначаємо всі повідомлення від бота прочитаними
                     await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
                     
                     if cooldown > 0:
@@ -132,18 +127,12 @@ async def main():
         raise ValueError("Помилка: Перемінна TELEGRAM_SESSION не знайдена!")
 
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
-
-        # 📦 ЦИКЛ ДЛЯ КЕЙСІВ (10 разів)
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---", flush=True)
             
-            # 1. Відкриваємо кейс у чаті Танатолій (і тиснемо кнопку)
             await open_case_in_topic(client)
-            
-            # Невелика пауза між діями
             await asyncio.sleep(3)
 
-            # 2. Отримуємо точний кулдаун через ЛС з ботом
             cooldown = await get_cooldown_from_bot(client)
 
             if cooldown > 0:
@@ -156,7 +145,6 @@ async def main():
             print(f"Коло {circle + 1} завершено.", flush=True)
             await asyncio.sleep(sleep_time)
         
-        # 🔄 Перезапуск воркфлоу
         restart_workflow()
 
 if __name__ == '__main__':
