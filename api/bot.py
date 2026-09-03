@@ -74,7 +74,7 @@ async def open_case_in_topic(client):
     # Чекаємо відповіді з кнопкою в топіку чату
     for attempt in range(12):
         await asyncio.sleep(1)
-        async for message in client.iter_messages(FARM_CHAT_ID, limit=10):
+        async for message in client.iter_messages(FARM_CHAT_ID, limit=10, min_id=sent_msg.id):
             if message.text and "подтверди открытие кейса" in message.text.lower():
                 if message.buttons:
                     try:
@@ -88,7 +88,7 @@ async def open_case_in_topic(client):
                         print(f"❌ Помилка натискання кнопки в топіку: {e}", flush=True)
 
 async def get_cooldown_from_bot(client):
-    """Шле '/open DELTARUNE' в ЛС боту і шукає рядок 'Попробуй через...'."""
+    """Шле '/open DELTARUNE' в ЛС боту і чекає НОВУ відповідь з кулдауном."""
     try:
         sent_msg = await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
         print(f"[{MAIN_BOT}] Відправлено запит кулдауну в ЛС: '{COMMAND_MAIN_CASES}'", flush=True)
@@ -98,15 +98,17 @@ async def get_cooldown_from_bot(client):
 
     cooldown_time = 0
 
+    # Чекаємо нове повідомлення від бота (фікс через min_id=sent_msg.id)
     for attempt in range(12):
         await asyncio.sleep(1)
-        async for message in client.iter_messages(MAIN_BOT, limit=5):
+        async for message in client.iter_messages(MAIN_BOT, limit=5, min_id=sent_msg.id):
             if message.text:
                 text_lower = message.text.lower()
                 if "на кулдауне" in text_lower or "попробуй через" in text_lower:
                     cooldown = parse_cooldown_time(message.text)
                     if cooldown > 0:
                         cooldown_time = cooldown
+                        break
 
         if cooldown_time > 0:
             break
