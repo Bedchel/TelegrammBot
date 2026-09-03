@@ -63,15 +63,12 @@ def parse_cooldown_time(text: str) -> int:
     return total_seconds
 
 async def open_case_in_topic(client):
-    """Шле команду в топік, тисне кнопку і чекає відповіді бота, щоб прочитати її."""
+    """Шле команду в топік чату Танатолій і тисне кнопку 'Открыть кейс', якщо вона є."""
     try:
-        sent_msg = await client.send_message(
-            FARM_CHAT_ID, 
-            COMMAND_TOPIC_CASES, 
-            reply_to=DELTA_TOPIC_ID, 
-            silent=True
-        )
-        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
+        kwargs = {"reply_to": DELTA_TOPIC_ID}
+        # Шлемо команду з прапором silent окремо від kwargs
+        sent_msg = await client.send_message(FARM_CHAT_ID, COMMAND_TOPIC_CASES, silent=True, **kwargs)
+        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}'", flush=True)
         
         if sent_msg:
             await client.send_read_acknowledge(FARM_CHAT_ID, max_id=sent_msg.id, top_msg_id=DELTA_TOPIC_ID)
@@ -80,47 +77,34 @@ async def open_case_in_topic(client):
         print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
         return
 
-    # Пошук кнопки підтвердження
-    button_clicked = False
+    # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
     for _ in range(15):
         await asyncio.sleep(1)
-        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, reply_to=DELTA_TOPIC_ID):
+        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, **kwargs):
             if message.text:
                 text_lower = message.text.lower()
-                # 🎯 Шукаємо ключову фразу бота
-                if "подтверди открытие кейса" in text_lower and message.buttons:
+                if "mischa" in text_lower and "подтверди открытие кейса" in text_lower and message.buttons:
                     try:
-                        # Тиснемо на першу кнопку (0, 0)
-                        await message.click(0, 0)
+                        await message.click(text="Открыть кейс")
                         print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
-                        button_clicked = True
-                        break
+                        
+                        # Позначаємо прочитаними поточні повідомлення
+                        await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id, top_msg_id=DELTA_TOPIC_ID)
+                        
+                        # Коротке очікування фінального повідомлення від бота і його прочитання
+                        await asyncio.sleep(2)
+                        async for last_msg in client.iter_messages(FARM_CHAT_ID, limit=2, **kwargs):
+                            await client.send_read_acknowledge(FARM_CHAT_ID, max_id=last_msg.id, top_msg_id=DELTA_TOPIC_ID)
+                        return
                     except Exception as e:
                         print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
                         return
-        if button_clicked:
-            break
-
-    # Якщо кнопка була натиснута, чекаємо фінальної відповіді від бота та читаємо її
-    if button_clicked:
-        for _ in range(10):  # Чекаємо до 10 секунд на результат
-            await asyncio.sleep(1)
-            async for last_msg in client.iter_messages(FARM_CHAT_ID, limit=3, reply_to=DELTA_TOPIC_ID):
-                if last_msg.text and "подтверди открытие кейса" not in last_msg.text.lower():
-                    await client.send_read_acknowledge(FARM_CHAT_ID, max_id=last_msg.id, top_msg_id=DELTA_TOPIC_ID)
-                    print("👁️ Відповідь бота прочитано в топіку!", flush=True)
-                    return
-        
-        # Про всяк випадок позначаємо прочитаним останнє повідомлення
-        async for last_msg in client.iter_messages(FARM_CHAT_ID, limit=1, reply_to=DELTA_TOPIC_ID):
-            await client.send_read_acknowledge(FARM_CHAT_ID, max_id=last_msg.id, top_msg_id=DELTA_TOPIC_ID)
 
 async def get_cooldown_from_bot(client):
-    """Шле команду боту в приватні повідомлення (без звуку) та позначає діалог прочитаним."""
+    """Шле команду боту в приватні повідомлення, щоб дізнатися кулдаун."""
     try:
-        # 🔕 silent=True вимикає сповіщення
-        await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
-        print(f"[{MAIN_BOT}] Відправлено команду перевірки кулдауну: '{COMMAND_MAIN_CASES}' (без звуку)", flush=True)
+        sent_msg = await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
+        print(f"[{MAIN_BOT}] Відправлено команду перевірки кулдауну: '{COMMAND_MAIN_CASES}'", flush=True)
     except Exception as e:
         print(f"[{MAIN_BOT}] Помилка при відправці команди боту: {e}", flush=True)
         return 0
@@ -134,7 +118,7 @@ async def get_cooldown_from_bot(client):
                 if "mischa" in text_lower or "кулдаун" in text_lower or "попробуй через" in text_lower:
                     cooldown = parse_cooldown_time(message.text)
                     
-                    # 👁️ Позначаємо всі повідомлення від бота прочитаними
+                    # Позначаємо всі повідомлення від бота прочитаними
                     await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
                     
                     if cooldown > 0:
