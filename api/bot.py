@@ -65,22 +65,28 @@ def parse_cooldown_time(text: str) -> int:
 async def open_case_in_topic(client):
     """Шле команду без звуку в топік чату Танатолій і тисне кнопку 'Открыть кейс'."""
     try:
-        await client.send_message(
+        # Відправляємо команду без звуку
+        sent_msg = await client.send_message(
             FARM_CHAT_ID, 
             COMMAND_TOPIC_CASES, 
             reply_to=DELTA_TOPIC_ID, 
             silent=True
         )
         print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
+        
+        # 👁️ Одразу позначаємо свою відправлену команду прочитаною
+        if sent_msg:
+            await client.send_read_acknowledge(FARM_CHAT_ID, max_id=sent_msg.id)
+            
     except Exception as e:
         print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
         return
 
-    # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
+    # Чекаємо відповіді бота в топіку
     for _ in range(15):
         await asyncio.sleep(1)
         
-        # 👁️ Одразу позначаємо чат прочитаним, щоб заглушити звук відповіді
+        # 👁️ Прочитати всі нові повідомлення в чаті, щоб заглушити сповіщення від бота
         try:
             await client.send_read_acknowledge(FARM_CHAT_ID)
         except Exception:
@@ -93,6 +99,8 @@ async def open_case_in_topic(client):
                     try:
                         await message.click(text="Открыть кейс")
                         print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
+                        
+                        # 👁️ Остаточне підтвердження прочитання після натискання
                         await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id)
                         return
                     except Exception as e:
