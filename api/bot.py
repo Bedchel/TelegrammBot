@@ -14,13 +14,8 @@ GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN", "").strip()
 REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 MAIN_BOT = '@deltarune_cases_bot'
-FARM_CHAT_ID = '@tanatoliiss'
 
-# 🎯 Точний ID топіка "Дельтакейс"
-DELTA_TOPIC_ID = 132244
-
-# Команди
-COMMAND_TOPIC_CASES = "дельтакейс"
+# Команда для відкриття кейса та перевірки кулдауну
 COMMAND_MAIN_CASES = "/open DELTARUNE"
 
 DEFAULT_SLEEP_TIME = 1830  # Час очікування за замовчуванням (30.5 хв)
@@ -61,66 +56,50 @@ def parse_cooldown_time(text: str) -> int:
     total_seconds = (minutes * 60) + seconds + 15
     return total_seconds
 
-async def open_case_in_topic(client):
-    """Шле команду без звуку в топік чату Танатолій і тисне кнопку 'Открыть кейс'."""
+async def open_case_in_bot(client):
+    """Шле команду відкриття боту в ЛС і тисне кнопку 'Открыть кейс' (якщо вона з'являється)."""
+    sent_msg_id = None
     try:
-        await client.send_message(
-            MAIN_BOT, 
-            COMMAND_TOPIC_CASES, 
-            reply_to=DELTA_TOPIC_ID, 
-            silent=True
-        )
-        print(f"[{MAIN_BOT}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
+        sent_msg = await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
+        if sent_msg:
+            sent_msg_id = sent_msg.id
+            print(f"[{MAIN_BOT}] Відправлено команду: '{COMMAND_MAIN_CASES}'", flush=True)
+            await client.send_read_acknowledge(MAIN_BOT, max_id=sent_msg_id)
     except Exception as e:
         print(f"[{MAIN_BOT}] Помилка при відправці команди: {e}", flush=True)
-        return
-
-    # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
-    for _ in range(15):
-        await asyncio.sleep(1)
-        
-        # 👁️ Одразу позначаємо чат прочитаним, щоб заглушити звук відповіді
-        try:
-            await client.send_read_acknowledge(MAIN_BOT)
-        except Exception:
-            pass
-
-        async for message in client.iter_messages(MAIN_BOT, limit=5, reply_to=DELTA_TOPIC_ID):
-            if message.text:
-                text_lower = message.text.lower()
-                if "mischa" in text_lower and "подтверди открытие кейса" in text_lower and message.buttons:
-                    try:
-                        await message.click(text="Открыть кейс")
-                        print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
-                        await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
-                        return
-                    except Exception as e:
-                        print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
-                        return
-
-async def get_cooldown_from_bot(client):
-    """Шле команду боту в приватні повідомлення, щоб дізнатися кулдаун."""
-    try:
-        await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
-        print(f"[{MAIN_BOT}] Відправлено команду перевірки кулдауну: '{COMMAND_MAIN_CASES}'", flush=True)
-    except Exception as e:
-        print(f"[{MAIN_BOT}] Помилка при відправці команди боту: {e}", flush=True)
         return 0
 
-    for _ in range(15):
+    cooldown_time = 0
+
+    # Чекаємо відповіді у приватних повідомленнях
+    for attempt in range(15):
         await asyncio.sleep(1)
         async for message in client.iter_messages(MAIN_BOT, limit=5):
             if message.text:
                 text_lower = message.text.lower()
+                
+                # Позначаємо прочитаними повідомлення від бота
+                await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
+
+                # 1. Якщо бот видає кнопку підтвердження
+                if "подтверди открытие кейса" in text_lower and message.buttons:
+                    try:
+                        await message.click(0)
+                        print("✅ Кнопку 'Открыть кейс' натиснуто у ЛС бота!", flush=True)
+                        await asyncio.sleep(2)
+                    except Exception as e:
+                        print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
+
+                # 2. Якщо бот повертає інформацію про кулдаун
                 if "mischa" in text_lower or "кулдаун" in text_lower or "попробуй через" in text_lower:
                     cooldown = parse_cooldown_time(message.text)
-                    await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
-                    
                     if cooldown > 0:
-                        print(f"⏱️ Отримано кулдаун від бота: {cooldown} секунд ({cooldown // 60}м {cooldown % 60}с)", flush=True)
-                        return cooldown
+                        cooldown_time = cooldown
 
-    return 0
+        if cooldown_time > 0:
+            break
+
+    return cooldown_time
 
 async def main():
     if not SESSION_STRING:
@@ -130,14 +109,13 @@ async def main():
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---", flush=True)
             
-            await open_case_in_topic(client)
-            await asyncio.sleep(3)
-
-            cooldown = await get_cooldown_from_bot(client)
+            # Відкриваємо кейс і одразу отримуємо кулдаун у приватних повідомленнях бота
+            cooldown = await open_case_in_bot(client)
 
             if cooldown > 0:
                 sleep_time = cooldown + 5
-                print(f"😴 Встановлено таймер сну за кулдауном: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)", flush=True)
+                print(f"⏱️ Отримано кулдаун від бота: {cooldown} сек.", flush=True)
+                print(f"😴 Встановлено таймер сну: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)", flush=True)
             else:
                 sleep_time = DEFAULT_SLEEP_TIME
                 print(f"😴 Кулдаун не виявлено. Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)", flush=True)
