@@ -73,7 +73,6 @@ async def open_case_in_topic(client):
         )
         print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
         
-        # Читаємо власне повідомлення
         if sent_msg:
             await client.send_read_acknowledge(FARM_CHAT_ID, max_id=sent_msg.id, top_msg_id=DELTA_TOPIC_ID)
             
@@ -88,9 +87,11 @@ async def open_case_in_topic(client):
         async for message in client.iter_messages(FARM_CHAT_ID, limit=5, reply_to=DELTA_TOPIC_ID):
             if message.text:
                 text_lower = message.text.lower()
-                if "mischa" in text_lower and "подтверди открытие кейса" in text_lower and message.buttons:
+                # 🎯 Шукаємо ключову фразу бота
+                if "подтверди открытие кейса" in text_lower and message.buttons:
                     try:
-                        await message.click(text="Открыть кейс")
+                        # Тиснемо на першу кнопку (0, 0)
+                        await message.click(0, 0)
                         print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
                         button_clicked = True
                         break
@@ -102,16 +103,15 @@ async def open_case_in_topic(client):
 
     # Якщо кнопка була натиснута, чекаємо фінальної відповіді від бота та читаємо її
     if button_clicked:
-        for _ in range(10):  # Чекаємо до 10 секунд на відповідь бота
+        for _ in range(10):  # Чекаємо до 10 секунд на результат
             await asyncio.sleep(1)
             async for last_msg in client.iter_messages(FARM_CHAT_ID, limit=3, reply_to=DELTA_TOPIC_ID):
-                # Перевіряємо, чи це нове повідомлення (не те, де кнопка)
                 if last_msg.text and "подтверди открытие кейса" not in last_msg.text.lower():
                     await client.send_read_acknowledge(FARM_CHAT_ID, max_id=last_msg.id, top_msg_id=DELTA_TOPIC_ID)
                     print("👁️ Відповідь бота прочитано в топіку!", flush=True)
                     return
         
-        # Про всяк випадок читаємо останні повідомлення
+        # Про всяк випадок позначаємо прочитаним останнє повідомлення
         async for last_msg in client.iter_messages(FARM_CHAT_ID, limit=1, reply_to=DELTA_TOPIC_ID):
             await client.send_read_acknowledge(FARM_CHAT_ID, max_id=last_msg.id, top_msg_id=DELTA_TOPIC_ID)
 
