@@ -15,11 +15,8 @@ REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 MAIN_BOT = '@deltarune_cases_bot'
 FARM_CHAT_ID = '@tanatoliiss'
-
-# 🎯 Точний ID топіка "Дельтакейс"
 DELTA_TOPIC_ID = 132244
 
-# Команди
 COMMAND_TOPIC_CASES = "дельтакейс"
 COMMAND_MAIN_CASES = "/open DELTARUNE"
 
@@ -45,7 +42,7 @@ def restart_workflow():
         print(f"Не вдалося перезапустити: {response.status_code}, {response.text}", flush=True)
 
 def parse_cooldown_time(text: str) -> int:
-    """Парсить текст повідомлення та повертає час кулдауну в секундах без затримок."""
+    """Парсить текст типу 'Попробуй через 13м 16с' або 'через 59с'."""
     if not text:
         return 0
     
@@ -61,8 +58,7 @@ def parse_cooldown_time(text: str) -> int:
     return (minutes * 60) + seconds
 
 async def open_case_in_topic(client):
-    """Шле команду в топік Танатолія і тисне кнопку відкриття."""
-    sent_msg_id = None
+    """Шле 'дельтакейс' у топік і тисне кнопку 'Открыть кейс'."""
     try:
         sent_msg = await client.send_message(
             FARM_CHAT_ID, 
@@ -70,65 +66,44 @@ async def open_case_in_topic(client):
             reply_to=DELTA_TOPIC_ID, 
             silent=True
         )
-        if sent_msg:
-            sent_msg_id = sent_msg.id
-            print(f"[{FARM_CHAT_ID}] Відправлено команду у топік: '{COMMAND_TOPIC_CASES}'", flush=True)
-            await client.send_read_acknowledge(FARM_CHAT_ID, max_id=sent_msg_id, top_msg_id=DELTA_TOPIC_ID)
+        print(f"[{FARM_CHAT_ID}] Відправлено '{COMMAND_TOPIC_CASES}' у топік {DELTA_TOPIC_ID}", flush=True)
     except Exception as e:
-        print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
+        print(f"[{FARM_CHAT_ID}] Помилка при відправці команди у топік: {e}", flush=True)
         return
 
-    # Чекаємо повідомлення з кнопкою у топіку
-    for attempt in range(15):
+    # Чекаємо відповіді з кнопкою в топіку чату
+    for attempt in range(12):
         await asyncio.sleep(1)
         async for message in client.iter_messages(FARM_CHAT_ID, limit=10):
-            # Перевіряємо, чи стосується повідомлення нашого топіка/відповіді
-            is_our_topic = (
-                (message.reply_to and message.reply_to.reply_to_msg_id == DELTA_TOPIC_ID) or
-                (message.reply_to and message.reply_to.reply_to_msg_id == sent_msg_id)
-            )
-            
-            if is_our_topic or (message.text and "подтверди открытие кейса" in message.text.lower()):
+            if message.text and "подтверди открытие кейса" in message.text.lower():
                 if message.buttons:
                     try:
-                        # Шукаємо потрібну Inline-кнопку і тиснемо
                         for row in message.buttons:
                             for button in row:
-                                await button.click()
-                                print("✅ Кнопку успішно натиснуто в топіку чату!", flush=True)
-                                await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id, top_msg_id=DELTA_TOPIC_ID)
-                                return
+                                if "открыть кейс" in button.text.lower():
+                                    await button.click()
+                                    print("✅ Кнопку 'Открыть кейс' успішно натиснуто в топіку!", flush=True)
+                                    return
                     except Exception as e:
-                        print(f"❌ Помилка натискання кнопкою: {e}", flush=True)
-                        try:
-                            await message.click(0)
-                            print("✅ Кнопку натиснуто через message.click(0)!", flush=True)
-                            await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id, top_msg_id=DELTA_TOPIC_ID)
-                            return
-                        except Exception as err:
-                            print(f"❌ Помилка резервного натискання: {err}", flush=True)
+                        print(f"❌ Помилка натискання кнопки в топіку: {e}", flush=True)
 
 async def get_cooldown_from_bot(client):
-    """Шле команду перевірки в приватні повідомлення бота, щоб отримати кулдаун."""
+    """Шле '/open DELTARUNE' в ЛС боту і шукає рядок 'Попробуй через...'."""
     try:
         sent_msg = await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
-        if sent_msg:
-            print(f"[{MAIN_BOT}] Відправлено запит кулдауну в ЛС: '{COMMAND_MAIN_CASES}'", flush=True)
-            await client.send_read_acknowledge(MAIN_BOT, max_id=sent_msg.id)
+        print(f"[{MAIN_BOT}] Відправлено запит кулдауну в ЛС: '{COMMAND_MAIN_CASES}'", flush=True)
     except Exception as e:
         print(f"[{MAIN_BOT}] Помилка при відправці запиту боту: {e}", flush=True)
         return 0
 
     cooldown_time = 0
 
-    for attempt in range(15):
+    for attempt in range(12):
         await asyncio.sleep(1)
         async for message in client.iter_messages(MAIN_BOT, limit=5):
             if message.text:
                 text_lower = message.text.lower()
-                await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
-
-                if "mischa" in text_lower or "кулдаун" in text_lower or "попробуй через" in text_lower:
+                if "на кулдауне" in text_lower or "попробуй через" in text_lower:
                     cooldown = parse_cooldown_time(message.text)
                     if cooldown > 0:
                         cooldown_time = cooldown
@@ -146,11 +121,14 @@ async def main():
         for circle in range(10): 
             print(f"\n--- Коло {circle + 1}/10 ---", flush=True)
             
-            # 1. Відкриваємо кейс та підтверджуємо в чаті Танатолій
+            if not client.is_connected():
+                await client.connect()
+
+            # 1. Відкриваємо кейс і тиснемо кнопку у топіку
             await open_case_in_topic(client)
             await asyncio.sleep(3)
 
-            # 2. Перевіряємо точний кулдаун у приватних повідомленнях бота
+            # 2. Перевіряємо кулдаун у приватних повідомленнях бота
             cooldown = await get_cooldown_from_bot(client)
 
             if cooldown > 0:
