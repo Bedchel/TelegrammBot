@@ -65,14 +65,14 @@ async def open_case_in_topic(client):
     """Шле команду без звуку в топік чату Танатолій і тисне кнопку 'Открыть кейс'."""
     try:
         await client.send_message(
-            FARM_CHAT_ID, 
+            MAIN_BOT, 
             COMMAND_TOPIC_CASES, 
             reply_to=DELTA_TOPIC_ID, 
             silent=True
         )
-        print(f"[{FARM_CHAT_ID}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
+        print(f"[{MAIN_BOT}] Відправлено команду: '{COMMAND_TOPIC_CASES}' (без звуку)", flush=True)
     except Exception as e:
-        print(f"[{FARM_CHAT_ID}] Помилка при відправці команди: {e}", flush=True)
+        print(f"[{MAIN_BOT}] Помилка при відправці команди: {e}", flush=True)
         return
 
     # Чекаємо відповіді у топіку до 15 секунд, щоб натиснути кнопку
@@ -81,18 +81,18 @@ async def open_case_in_topic(client):
         
         # 👁️ Одразу позначаємо чат прочитаним, щоб заглушити звук відповіді
         try:
-            await client.send_read_acknowledge(FARM_CHAT_ID)
+            await client.send_read_acknowledge(MAIN_BOT)
         except Exception:
             pass
 
-        async for message in client.iter_messages(FARM_CHAT_ID, limit=5, reply_to=DELTA_TOPIC_ID):
+        async for message in client.iter_messages(MAIN_BOT, limit=5, reply_to=DELTA_TOPIC_ID):
             if message.text:
                 text_lower = message.text.lower()
                 if "mischa" in text_lower and "подтверди открытие кейса" in text_lower and message.buttons:
                     try:
                         await message.click(text="Открыть кейс")
                         print("✅ Кнопку 'Открыть кейс' успішно натиснуто в чаті Танатолій!", flush=True)
-                        await client.send_read_acknowledge(FARM_CHAT_ID, max_id=message.id)
+                        await client.send_read_acknowledge(MAIN_BOT, max_id=message.id)
                         return
                     except Exception as e:
                         print(f"❌ Помилка при натисканні кнопки: {e}", flush=True)
