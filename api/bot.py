@@ -14,10 +14,6 @@ GITHUB_TOKEN = os.getenv("MY_GITHUB_TOKEN", "").strip()
 REPO = os.getenv("GITHUB_REPOSITORY", "").strip()
 
 MAIN_BOT = '@deltarune_cases_bot'
-FARM_CHAT_ID = '@tanatoliiss'
-DELTA_TOPIC_ID = 132244
-
-COMMAND_TOPIC_CASES = "дельтакейс"
 COMMAND_MAIN_CASES = "/open DELTARUNE"
 
 DEFAULT_SLEEP_TIME = 1830  # Час очікування за замовчуванням (30.5 хв)
@@ -57,53 +53,37 @@ def parse_cooldown_time(text: str) -> int:
     
     return (minutes * 60) + seconds
 
-async def open_case_in_topic(client):
-    """Шле 'дельтакейс' у топік і тисне кнопку 'Открыть кейс'."""
-    try:
-        sent_msg = await client.send_message(
-            FARM_CHAT_ID, 
-            COMMAND_TOPIC_CASES, 
-            reply_to=DELTA_TOPIC_ID, 
-            silent=True
-        )
-        print(f"[{FARM_CHAT_ID}] Відправлено '{COMMAND_TOPIC_CASES}' у топік {DELTA_TOPIC_ID}", flush=True)
-    except Exception as e:
-        print(f"[{FARM_CHAT_ID}] Помилка при відправці команди у топік: {e}", flush=True)
-        return
-
-    # Чекаємо відповіді з кнопкою в топіку чату
-    for attempt in range(12):
-        await asyncio.sleep(1)
-        async for message in client.iter_messages(FARM_CHAT_ID, limit=10, min_id=sent_msg.id):
-            if message.text and "подтверди открытие кейса" in message.text.lower():
-                if message.buttons:
-                    try:
-                        for row in message.buttons:
-                            for button in row:
-                                if "открыть кейс" in button.text.lower():
-                                    await button.click()
-                                    print("✅ Кнопку 'Открыть кейс' успішно натиснуто в топіку!", flush=True)
-                                    return
-                    except Exception as e:
-                        print(f"❌ Помилка натискання кнопки в топіку: {e}", flush=True)
-
-async def get_cooldown_from_bot(client):
-    """Шле '/open DELTARUNE' в ЛС боту і чекає НОВУ відповідь з кулдауном."""
+async def interact_with_main_bot(client):
+    """Шле '/open DELTARUNE' у ЛС боту, тисне кнопку при наявності та зчитує кулдаун."""
     try:
         sent_msg = await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
-        print(f"[{MAIN_BOT}] Відправлено запит кулдауну в ЛС: '{COMMAND_MAIN_CASES}'", flush=True)
+        print(f"[{MAIN_BOT}] Відправлено команду в ЛС: '{COMMAND_MAIN_CASES}'", flush=True)
     except Exception as e:
-        print(f"[{MAIN_BOT}] Помилка при відправці запиту боту: {e}", flush=True)
+        print(f"[{MAIN_BOT}] Помилка при відправці команди боту: {e}", flush=True)
         return 0
 
     cooldown_time = 0
 
-    # Чекаємо нове повідомлення від бота (фікс через min_id=sent_msg.id)
+    # Чекаємо відповіді від бота в ЛС
     for attempt in range(12):
         await asyncio.sleep(1)
         async for message in client.iter_messages(MAIN_BOT, limit=5, min_id=sent_msg.id):
             if message.text:
                 text_lower = message.text.lower()
+
+                # Якщо бот прислав підтвердження з кнопкою
+                if "подтверди открытие кейса" in text_lower and message.buttons:
+                    try:
+                        for row in message.buttons:
+                            for button in row:
+                                if "открыть кейс" in button.text.lower():
+                                    await button.click()
+                                    print(f"[{MAIN_BOT}] ✅ Кнопку 'Открыть кейс' успішно натиснуто!", flush=True)
+                                    break
+                    except Exception as e:
+                        print(f"[{MAIN_BOT}] ❌ Помилка натискання кнопки: {e}", flush=True)
+
+                # Якщо бот відповідає про кулдаун
                 if "на кулдауне" in text_lower or "попробуй через" in text_lower:
                     cooldown = parse_cooldown_time(message.text)
                     if cooldown > 0:
@@ -126,12 +106,8 @@ async def main():
             if not client.is_connected():
                 await client.connect()
 
-            # 1. Відкриваємо кейс і тиснемо кнопку у топіку
-            await open_case_in_topic(client)
-            await asyncio.sleep(3)
-
-            # 2. Перевіряємо кулдаун у приватних повідомленнях бота
-            cooldown = await get_cooldown_from_bot(client)
+            # Взаємодіємо з головним ботом у ЛС
+            cooldown = await interact_with_main_bot(client)
 
             if cooldown > 0:
                 sleep_time = cooldown + 2
@@ -139,7 +115,7 @@ async def main():
                 print(f"😴 Встановлено таймер сну: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)", flush=True)
             else:
                 sleep_time = DEFAULT_SLEEP_TIME
-                print(f"😴 Кулдаун не виявлено. Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)", flush=True)
+                print(f"😴 Кулдаун не виявлено (або кейс щойно відкрито). Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)", flush=True)
 
             print(f"Коло {circle + 1} завершено.", flush=True)
             await asyncio.sleep(sleep_time)
