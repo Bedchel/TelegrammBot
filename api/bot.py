@@ -53,19 +53,19 @@ def parse_cooldown_time(text: str) -> int:
     
     return (minutes * 60) + seconds
 
-async def interact_with_main_bot(client):
-    """Шле '/open DELTARUNE' у ЛС боту, тисне кнопку при наявності та зчитує кулдаун."""
+async def send_and_check_cooldown(client):
+    """Надсилає команду в ЛС і шукає кулдаун чи кнопку підтвердження."""
     try:
         sent_msg = await client.send_message(MAIN_BOT, COMMAND_MAIN_CASES, silent=True)
         print(f"[{MAIN_BOT}] Відправлено команду в ЛС: '{COMMAND_MAIN_CASES}'", flush=True)
     except Exception as e:
         print(f"[{MAIN_BOT}] Помилка при відправці команди боту: {e}", flush=True)
-        return 0
+        return 0, False
 
     cooldown_time = 0
+    button_clicked = False
 
-    # Чекаємо відповіді від бота в ЛС
-    for attempt in range(12):
+    for attempt in range(10):
         await asyncio.sleep(1)
         async for message in client.iter_messages(MAIN_BOT, limit=5, min_id=sent_msg.id):
             if message.text:
@@ -78,6 +78,7 @@ async def interact_with_main_bot(client):
                             for button in row:
                                 if "открыть кейс" in button.text.lower():
                                     await button.click()
+                                    button_clicked = True
                                     print(f"[{MAIN_BOT}] ✅ Кнопку 'Открыть кейс' успішно натиснуто!", flush=True)
                                     break
                     except Exception as e:
@@ -90,10 +91,25 @@ async def interact_with_main_bot(client):
                         cooldown_time = cooldown
                         break
 
-        if cooldown_time > 0:
+        if cooldown_time > 0 or button_clicked:
             break
 
-    return cooldown_time
+    return cooldown_time, button_clicked
+
+async def process_main_bot_cycle(client):
+    """Повний цикл: спроба відкриття + повторний запит для дізнавання таймера."""
+    # 1. Перша спроба (відкриваємо кейс або отримуємо поточний кулдаун)
+    cooldown, button_clicked = await send_and_check_cooldown(client)
+
+    # Якщо ми щойно натиснули кнопку або кулдаун ще не повернувся — робимо 2-й запит для перевірки таймера
+    if button_clicked or cooldown == 0:
+        await asyncio.sleep(3)
+        print(f"[{MAIN_BOT}] Перевіряємо таймер до наступного кейсу (другий запит)...", flush=True)
+        second_cooldown, _ = await send_and_check_cooldown(client)
+        if second_cooldown > 0:
+            cooldown = second_cooldown
+
+    return cooldown
 
 async def main():
     if not SESSION_STRING:
@@ -106,8 +122,8 @@ async def main():
             if not client.is_connected():
                 await client.connect()
 
-            # Взаємодіємо з головним ботом у ЛС
-            cooldown = await interact_with_main_bot(client)
+            # Запускаємо цикл взаємодії з ботом
+            cooldown = await process_main_bot_cycle(client)
 
             if cooldown > 0:
                 sleep_time = cooldown + 2
@@ -115,7 +131,7 @@ async def main():
                 print(f"😴 Встановлено таймер сну: {sleep_time} сек ({sleep_time // 60}м {sleep_time % 60}с)", flush=True)
             else:
                 sleep_time = DEFAULT_SLEEP_TIME
-                print(f"😴 Кулдаун не виявлено (або кейс щойно відкрито). Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)", flush=True)
+                print(f"😴 Кулдаун не виявлено. Засинаємо на стандартний час: {sleep_time} сек ({sleep_time // 60}м)", flush=True)
 
             print(f"Коло {circle + 1} завершено.", flush=True)
             await asyncio.sleep(sleep_time)
